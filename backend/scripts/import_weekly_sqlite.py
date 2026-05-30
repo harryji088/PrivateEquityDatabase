@@ -84,7 +84,7 @@ def parse_all_files():
     """Parse all weekly Excel files."""
     files = sorted([
         f for f in os.listdir(DATA_DIR)
-        if f.endswith('.xlsx') and '点睛业绩放送' in f
+        if f.endswith('.xlsx') and '点睛业绩放送' in f and not f.startswith('~$')
     ])
 
     all_records = []
@@ -133,7 +133,7 @@ def parse_all_files():
                 elif '近一周超额' in h:    col_map['weekly_excess'] = i
                 elif '今年以来收益率' in h and '年化' not in h:
                     col_map['ytd_return'] = i
-                elif '今年以来超额' in h:   col_map['ytd_excess'] = i
+                elif '今年以来超额' in h and '动态回撤' not in h:   col_map['ytd_excess'] = i
                 elif '今年以来动态回撤' in h and '超额' not in h:
                     col_map['ytd_drawdown'] = i
                 elif '成立以来年化收益率' in h:
