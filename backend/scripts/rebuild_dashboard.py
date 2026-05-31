@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Clean rebuild of dashboard.html with absolute + excess return tabs.
 """
@@ -644,6 +645,27 @@ body.light .rank-table th{{background:#f0f5ff}}
 .pw-err{{color:var(--red);font-size:12px;margin-top:10px;min-height:18px;font-family:-apple-system,BlinkMacSystemFont,sans-serif}}
 @keyframes shake{{0%,100%{{transform:translateX(0)}}20%,60%{{transform:translateX(-6px)}}40%,80%{{transform:translateX(6px)}}}}
 .shake{{animation:shake 0.4s}}
+.fund-link{{cursor:pointer;color:var(--accent);text-decoration:none;transition:all var(--transition)}}
+.fund-link:hover{{color:#fff;text-decoration:underline}}
+.modal-overlay{{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(2,2,8,0.85);z-index:10000;display:none;align-items:center;justify-content:center}}
+.modal-overlay.show{{display:flex}}
+.modal-content{{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;width:95%;max-width:1300px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column}}
+.modal-header{{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-card);z-index:10;border-radius:10px 10px 0 0}}
+.modal-header h2{{font-size:16px;margin:0;border:none;padding:0}}
+.modal-close{{background:none;border:1px solid var(--border);color:var(--text-secondary);font-size:18px;cursor:pointer;padding:4px 12px;border-radius:var(--radius);transition:all var(--transition);line-height:1}}
+.modal-close:hover{{border-color:var(--accent);color:var(--accent)}}
+.modal-body{{padding:20px 24px}}
+.modal-metrics{{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}}
+.modal-mcard{{background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:12px 16px;flex:1;min-width:90px;text-align:center}}
+.modal-mcard .mv{{font-size:18px;font-weight:700;color:var(--accent);font-family:'SF Mono',SFMono-Regular,Consolas,monospace}}
+.modal-mcard .ml{{font-size:10px;color:var(--text-muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;font-family:-apple-system,BlinkMacSystemFont,sans-serif}}
+.range-bar{{display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;padding:10px 14px;background:var(--bg-deep);border-radius:6px;border:1px solid var(--border)}}
+.range-bar label{{font-size:11px;color:var(--text-secondary);font-family:-apple-system,BlinkMacSystemFont,sans-serif;text-transform:uppercase;letter-spacing:0.04em}}
+.range-bar select{{padding:5px 8px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;font-family:'SF Mono',SFMono-Regular,Consolas,monospace;outline:none}}
+.range-bar select:focus{{border-color:var(--accent)}}
+.chart-inline{{display:flex;gap:16px}}
+.chart-inline .chart-half{{flex:1;height:350px}}
+@media(max-width:900px){{.chart-inline{{flex-direction:column}}.chart-inline .chart-half{{height:300px}}}}
 </style></head><body>
 <div id="pwOverlay"><div class="pw-card"><h2>🔐 量化私募业绩看板</h2><div class="pw-sub">请输入访问密码</div><input type="password" id="pwInput" placeholder="······" autofocus><button onclick="checkPw()">验 证</button><div class="pw-err" id="pwErr"></div></div></div><div id="app" style="display:none">
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
@@ -714,6 +736,7 @@ function makeBenchSeries(bname, showSymbol) {{
 function switchTab(tab) {{
   if (cS) cS.dispose(); if (cG) cG.dispose(); if (cF) cF.dispose();
   cS = null; cG = null; cF = null; extraLines = [];
+  closeProductModal();
 
   currentTab = tab;
   IS_EXCESS = (tab === 'excess' || tab === 'excess_dd');
@@ -850,10 +873,10 @@ function initAll() {{
     }}
     var tbody='';filtered.forEach(function(r,i){{var retPct=(r.weekly_return*100).toFixed(2),isUp=r.weekly_return>=0,cls=isUp?'nav-up':'nav-down',barW=maxAbs>0?Math.abs(r.weekly_return)/maxAbs*100:100,barColor=isUp?'#e74c3c':'#27ae60';
       if(IS_EXCESS){{
-        tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+r.company+'</td><td>'+r.strategy+'</td><td>'+r.size+'</td><td class="'+cls+'">'+(isUp?'+':'')+retPct+'%</td><td style="width:180px;"><span style="display:inline-block;width:'+barW+'%;height:12px;background:'+barColor+';border-radius:3px;vertical-align:middle;"></span></td><td>'+r.pct+'%</td></tr>';
+        tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+fundLink(r.company,r.strategy)+'</td><td>'+r.strategy+'</td><td>'+r.size+'</td><td class="'+cls+'">'+(isUp?'+':'')+retPct+'%</td><td style="width:180px;"><span style="display:inline-block;width:'+barW+'%;height:12px;background:'+barColor+';border-radius:3px;vertical-align:middle;"></span></td><td>'+r.pct+'%</td></tr>';
       }}else{{
         var exPct=r.weekly_excess!==null?(r.weekly_excess*100).toFixed(2):'-';
-        tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+r.company+'</td><td>'+r.strategy+'</td><td>'+r.size+'</td><td class="'+cls+'">'+(isUp?'+':'')+retPct+'%</td><td class="'+(r.weekly_excess!==null&&r.weekly_excess>=0?'nav-up':'nav-down')+'">'+(r.weekly_excess!==null?(r.weekly_excess>=0?'+':'')+exPct+'%':'-')+'</td><td style="width:180px;"><span style="display:inline-block;width:'+barW+'%;height:12px;background:'+barColor+';border-radius:3px;vertical-align:middle;"></span></td><td>'+r.pct+'%</td></tr>';
+        tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+fundLink(r.company,r.strategy)+'</td><td>'+r.strategy+'</td><td>'+r.size+'</td><td class="'+cls+'">'+(isUp?'+':'')+retPct+'%</td><td class="'+(r.weekly_excess!==null&&r.weekly_excess>=0?'nav-up':'nav-down')+'">'+(r.weekly_excess!==null?(r.weekly_excess>=0?'+':'')+exPct+'%':'-')+'</td><td style="width:180px;"><span style="display:inline-block;width:'+barW+'%;height:12px;background:'+barColor+';border-radius:3px;vertical-align:middle;"></span></td><td>'+r.pct+'%</td></tr>';
       }}
     }});
     document.querySelector('#tableWR tbody').innerHTML=tbody;
@@ -869,7 +892,7 @@ function initAll() {{
       var n=rows.length;rows.forEach(function(r,i){{r.pct=n>1?Math.round((n-i)/n*100):100;}}); countEl.textContent=n+' 条';
       var maxAbs=0;rows.forEach(function(r){{maxAbs=Math.max(maxAbs,Math.abs(r.worst));}});
       document.querySelector('#tableYTD thead').innerHTML='<tr><th>排名</th><th>管理人</th><th>策略</th><th>规模</th><th>最大超额回撤</th><th>当前回撤</th><th>回撤柱</th><th>分位</th><th>覆盖</th></tr>';
-      var tbody='';rows.forEach(function(r,i){{var worstPct=(r.worst*100).toFixed(2),curPct=r.current!==null?(r.current*100).toFixed(2):'-',barW=maxAbs>0?Math.abs(r.worst)/maxAbs*100:100;tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+r.company+'</td><td>'+r.strategy+'</td><td>'+r.size+'</td><td class="nav-down">'+worstPct+'%</td><td class="'+(r.current===0?'nav-up':'nav-down')+'">'+curPct+'%</td><td style="width:120px;"><span style="display:inline-block;width:'+barW+'%;height:12px;background:#e74c3c;border-radius:3px;vertical-align:middle;"></span></td><td>'+r.pct+'%</td><td>'+r.weeks+'/'+DATA.dates.length+'</td></tr>';}});
+      var tbody='';rows.forEach(function(r,i){{var worstPct=(r.worst*100).toFixed(2),curPct=r.current!==null?(r.current*100).toFixed(2):'-',barW=maxAbs>0?Math.abs(r.worst)/maxAbs*100:100;tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+fundLink(r.company,r.strategy)+'</td><td>'+r.strategy+'</td><td>'+r.size+'</td><td class="nav-down">'+worstPct+'%</td><td class="'+(r.current===0?'nav-up':'nav-down')+'">'+curPct+'%</td><td style="width:120px;"><span style="display:inline-block;width:'+barW+'%;height:12px;background:#e74c3c;border-radius:3px;vertical-align:middle;"></span></td><td>'+r.pct+'%</td><td>'+r.weeks+'/'+DATA.dates.length+'</td></tr>';}});
       document.querySelector('#tableYTD tbody').innerHTML=tbody;
     }}else{{
       var rows=filtered.map(function(f){{var v=f.navs.filter(function(n){{return n!==null;}});var latest=v.length?v[v.length-1]:null;return{{company:f.company,strategy:f.strategy,size:f.size,nav:latest,ytd:latest!==null?latest-1:null,first:v.length?v[0]:null,weeks:v.length}};}}).filter(function(r){{return r.nav!==null;}}).sort(function(a,b){{return b.nav-a.nav;}});
@@ -880,7 +903,7 @@ function initAll() {{
       }} else {{
         document.querySelector('#tableYTD thead').innerHTML='<tr><th>排名</th><th>管理人</th><th>策略</th><th>规模</th><th>累计净值</th><th>YTD收益</th><th>收益柱</th><th>分位</th><th>覆盖</th></tr>';
       }}
-      var tbody='';rows.forEach(function(r,i){{var ytdPct=(r.ytd*100).toFixed(2),isUp=r.ytd>=0,cls=isUp?'nav-up':'nav-down',barW=maxAbs>0?Math.abs(r.ytd)/maxAbs*100:100,barColor=isUp?'#e74c3c':'#27ae60';tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+r.company+'</td><td>'+r.strategy+'</td><td>'+r.size+'</td><td class="'+cls+'">'+r.nav.toFixed(4)+'</td><td class="'+cls+'">'+(isUp?'+':'')+ytdPct+'%</td><td style="width:120px;"><span style="display:inline-block;width:'+barW+'%;height:12px;background:'+barColor+';border-radius:3px;vertical-align:middle;"></span></td><td>'+r.pct+'%</td><td>'+r.weeks+'/'+DATA.dates.length+'</td></tr>';}});
+      var tbody='';rows.forEach(function(r,i){{var ytdPct=(r.ytd*100).toFixed(2),isUp=r.ytd>=0,cls=isUp?'nav-up':'nav-down',barW=maxAbs>0?Math.abs(r.ytd)/maxAbs*100:100,barColor=isUp?'#e74c3c':'#27ae60';tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+fundLink(r.company,r.strategy)+'</td><td>'+r.strategy+'</td><td>'+r.size+'</td><td class="'+cls+'">'+r.nav.toFixed(4)+'</td><td class="'+cls+'">'+(isUp?'+':'')+ytdPct+'%</td><td style="width:120px;"><span style="display:inline-block;width:'+barW+'%;height:12px;background:'+barColor+';border-radius:3px;vertical-align:middle;"></span></td><td>'+r.pct+'%</td><td>'+r.weeks+'/'+DATA.dates.length+'</td></tr>';}});
       document.querySelector('#tableYTD tbody').innerHTML=tbody;
     }}
   }}
@@ -913,7 +936,7 @@ function initAll() {{
     var thead='<tr><th>排名</th><th>管理人</th><th>策略</th><th>规模</th><th>'+(IS_EXCESS_DD?'最大超额回撤':(IS_EXCESS?'最新超额':'最新净值'))+'</th><th>变动</th><th>覆盖</th>';
     dates_local.forEach(function(d){{thead+='<th>'+d+'</th>';}});thead+='</tr>';
     document.querySelector('#tableRank thead').innerHTML=thead;
-    var tbody='';funds.forEach(function(f,i){{var ch=IS_EXCESS_DD?(f.first!==null&&f.final!==null?f.first-f.final:null):(f.final!==null&&f.first!==null?f.final-f.first:null),chHtml='-';if(ch!==null){{if(IS_EXCESS_DD){{var cls2=ch>0?'down':'up';chHtml='<span class=\"tag '+cls2+'\">'+(ch>=0?'+':'')+(ch*100).toFixed(1)+'%</span>';}}else{{var cls=ch>0?'up':'down';chHtml='<span class=\"tag '+cls+'\">'+(ch>=0?'+':'')+(ch*100).toFixed(1)+'%</span>';}}}}if(IS_EXCESS_DD){{tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+f.company+'</td><td>'+f.strategy+'</td><td>'+f.size+'</td><td class=\"'+(f.final===0?'nav-up':'nav-down')+'\">'+(f.final*100).toFixed(2)+'%</td><td>'+chHtml+'</td><td>'+f.weeks+'/'+DATA.dates.length+'</td>';dates_local.forEach(function(d,j){{var n=f.vals[j];tbody+=n!==null?'<td style=\"color:'+(n===0?'#27ae60':(n>-0.03?'#f39c12':'#e74c3c'))+'\">'+(n*100).toFixed(2)+'%</td>':'<td style=\"color:#ccc\">·</td>';}});}}else if(IS_EXCESS){{tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+f.company+'</td><td>'+f.strategy+'</td><td>'+f.size+'</td><td class=\"'+(f.final>0?'nav-up':'nav-down')+'\">'+(f.final*100).toFixed(2)+'%</td><td>'+chHtml+'</td><td>'+f.weeks+'/'+DATA.dates.length+'</td>';dates_local.forEach(function(d,j){{var n=f.vals[j];tbody+=n!==null?'<td style=\"color:'+(n>0?'#e74c3c':'#27ae60')+'\">'+(n*100).toFixed(2)+'%</td>':'<td style=\"color:#ccc\">·</td>';}});}}else{{tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+f.company+'</td><td>'+f.strategy+'</td><td>'+f.size+'</td><td class=\"'+(f.final>=1?'nav-up':'nav-down')+'\">'+f.final.toFixed(4)+'</td><td>'+chHtml+'</td><td>'+f.weeks+'/'+DATA.dates.length+'</td>';dates_local.forEach(function(d,j){{var n=f.vals[j];tbody+=n!==null?'<td style=\"color:'+(n>=1?'#e74c3c':'#27ae60')+'\">'+n.toFixed(4)+'</td>':'<td style=\"color:#ccc\">·</td>';}});}}tbody+='</tr>';}});
+    var tbody='';funds.forEach(function(f,i){{var ch=IS_EXCESS_DD?(f.first!==null&&f.final!==null?f.first-f.final:null):(f.final!==null&&f.first!==null?f.final-f.first:null),chHtml='-';if(ch!==null){{if(IS_EXCESS_DD){{var cls2=ch>0?'down':'up';chHtml='<span class=\"tag '+cls2+'\">'+(ch>=0?'+':'')+(ch*100).toFixed(1)+'%</span>';}}else{{var cls=ch>0?'up':'down';chHtml='<span class=\"tag '+cls+'\">'+(ch>=0?'+':'')+(ch*100).toFixed(1)+'%</span>';}}}}if(IS_EXCESS_DD){{tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+fundLink(f.company,f.strategy)+'</td><td>'+f.strategy+'</td><td>'+f.size+'</td><td class=\"'+(f.final===0?'nav-up':'nav-down')+'\">'+(f.final*100).toFixed(2)+'%</td><td>'+chHtml+'</td><td>'+f.weeks+'/'+DATA.dates.length+'</td>';dates_local.forEach(function(d,j){{var n=f.vals[j];tbody+=n!==null?'<td style=\"color:'+(n===0?'#27ae60':(n>-0.03?'#f39c12':'#e74c3c'))+'\">'+(n*100).toFixed(2)+'%</td>':'<td style=\"color:#ccc\">·</td>';}});}}else if(IS_EXCESS){{tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+fundLink(f.company,f.strategy)+'</td><td>'+f.strategy+'</td><td>'+f.size+'</td><td class=\"'+(f.final>0?'nav-up':'nav-down')+'\">'+(f.final*100).toFixed(2)+'%</td><td>'+chHtml+'</td><td>'+f.weeks+'/'+DATA.dates.length+'</td>';dates_local.forEach(function(d,j){{var n=f.vals[j];tbody+=n!==null?'<td style=\"color:'+(n>0?'#e74c3c':'#27ae60')+'\">'+(n*100).toFixed(2)+'%</td>':'<td style=\"color:#ccc\">·</td>';}});}}else{{tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+fundLink(f.company,f.strategy)+'</td><td>'+f.strategy+'</td><td>'+f.size+'</td><td class=\"'+(f.final>=1?'nav-up':'nav-down')+'\">'+f.final.toFixed(4)+'</td><td>'+chHtml+'</td><td>'+f.weeks+'/'+DATA.dates.length+'</td>';dates_local.forEach(function(d,j){{var n=f.vals[j];tbody+=n!==null?'<td style=\"color:'+(n>=1?'#e74c3c':'#27ae60')+'\">'+n.toFixed(4)+'</td>':'<td style=\"color:#ccc\">·</td>';}});}}tbody+='</tr>';}});
     document.querySelector('#tableRank tbody').innerHTML=tbody;
   }}
 
@@ -930,7 +953,7 @@ function initAll() {{
     var tbody='';matched.forEach(function(f,i){{
       var valid=f.ranks.filter(function(r){{return r!==null;}}),latest=valid.length?valid[valid.length-1]:null,first=valid.length?valid[0]:null,ch=latest!==null&&first!==null?first-latest:null,chHtml='-';
       if(ch!==null){{if(ch>0)chHtml='<span class="tag up">↑'+ch+'</span>';else if(ch<0)chHtml='<span class="tag down">↓'+Math.abs(ch)+'</span>';else chHtml='<span style="color:#888">─</span>';}}
-      tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+f.company+'</td><td>'+f.strategy+'</td><td>'+f.size+'</td><td><b>'+(latest||'-')+'</b></td><td>'+chHtml+'</td>';
+      tbody+='<tr><td><b>'+(i+1)+'</b></td><td>'+fundLink(f.company,f.strategy)+'</td><td>'+f.strategy+'</td><td>'+f.size+'</td><td><b>'+(latest||'-')+'</b></td><td>'+chHtml+'</td>';
       dates_local.forEach(function(d,j){{var r=f.ranks[j];if(r!==null){{var alpha=Math.max(0.3,1-r/Math.max(valid.length,50)),bg=r<=5?'#27ae60':(r<=10?'#2ecc71':(r<=20?'#f39c12':'#e74c3c'));tbody+='<td style="background:'+bg+';color:#fff;font-weight:600;opacity:'+alpha.toFixed(2)+'">'+r+'</td>';}}else{{tbody+='<td style="color:#ccc">·</td>';}}}});
       tbody+='</tr>';
     }});
@@ -980,8 +1003,35 @@ function initAll() {{
 }}
 
 initAll();
+function fundLink(c,s){{return '<span class="fund-link" data-company="'+c+'" data-strategy="'+s+'">'+c+'</span>';}}
+var productChart1=null,productChart2=null,currentPFund=null;
+function showProductDetail(company,strategy){{var f=DATA.funds.find(function(ff){{return ff.company===company&&ff.strategy===strategy;}});if(!f)return;currentPFund=f;document.getElementById('modalTitle').textContent=f.company+' · '+f.strategy+' · '+f.size;var dates=DATA.dates,ws=dates.length,selS=document.getElementById('rangeStart'),selE=document.getElementById('rangeEnd');selS.innerHTML='';selE.innerHTML='';dates.forEach(function(d,i){{var opt='<option value="'+i+'">'+d.slice(5)+'</option>';selS.innerHTML+=opt;selE.innerHTML+=opt;}});selS.value=0;selE.value=ws-1;if(!productChart1){{productChart1=echarts.init(document.getElementById('chartProductNav'));productChart2=echarts.init(document.getElementById('chartProductWeekly'));}}document.getElementById('productModal').classList.add('show');updateProductMetrics();}}
+function closeProductModal(){{document.getElementById('productModal').classList.remove('show');currentPFund=null;}}
+function updateProductMetrics(){{var f=currentPFund;if(!f)return;var sI=parseInt(document.getElementById('rangeStart').value),eI=parseInt(document.getElementById('rangeEnd').value);if(eI<sI){{var t=sI;sI=eI;eI=t;}}var dates=DATA.dates.slice(sI,eI+1),wlabs=DATA.weekLabels.slice(sI,eI+1),navsR=f.navs.slice(sI,eI+1),excsR=f.excesses.slice(sI,eI+1),wData=[];wlabs.forEach(function(w){{var wd=DATA.weeklyData[w];if(wd){{var e=wd.find(function(r){{return r.company===f.company&&r.strategy===f.strategy;}});if(e)wData.push(e);}}}});var nW=wData.length,allNavs=navsR.filter(function(n){{return n!==null;}}),allExcs=excsR.filter(function(n){{return n!==null;}}),sNav=navsR.find(function(n){{return n!==null;}})||1,eNav=allNavs.length?allNavs[allNavs.length-1]:sNav,totRet=(eNav/sNav-1)*100,annR=(Math.pow(eNav/sNav,52/Math.max(1,nW))-1)*100,sExc=excsR.find(function(n){{return n!==null;}})||0,eExc=allExcs.length?allExcs[allExcs.length-1]:sExc,totExc=(eExc-sExc)*100,wRets=wData.map(function(w){{return w.weekly_return;}});var meanR=nW>0?wRets.reduce(function(a,b){{return a+b;}},0)/nW:0,variance=nW>0?wRets.reduce(function(sum,r){{return sum+Math.pow(r-meanR,2);}},0)/nW:0,annVol=Math.sqrt(Math.max(0,variance)*52)*100,sharpe=annVol>0?(annR/annVol):0,peak=-Infinity,maxDD=0;navsR.forEach(function(n){{if(n===null)return;if(n>peak)peak=n;var dd=(n-peak)/peak;if(dd<maxDD)maxDD=dd;}});var up=wRets.filter(function(r){{return r>0;}}).length,winR=nW>0?(up/nW*100).toFixed(1):'-',wcPct=(maxDD*100).toFixed(2),upCls=totRet>=0?'nav-up':'nav-down',ddCls=maxDD===0?'nav-up':'nav-down';document.getElementById('modalMetrics').innerHTML='<div class="modal-mcard"><div class="mv '+upCls+'">'+(totRet>=0?'+':'')+totRet.toFixed(2)+'%</div><div class="ml">区间累计收益</div></div><div class="modal-mcard"><div class="mv '+upCls+'">'+(annR>=0?'+':'')+annR.toFixed(2)+'%</div><div class="ml">年化收益</div></div><div class="modal-mcard"><div class="mv '+(totExc>=0?'nav-up':'nav-down')+'">'+(totExc>=0?'+':'')+totExc.toFixed(2)+'%</div><div class="ml">累计超额</div></div><div class="modal-mcard"><div class="mv">'+annVol.toFixed(2)+'%</div><div class="ml">年化波动率</div></div><div class="modal-mcard"><div class="mv '+ddCls+'">'+wcPct+'%</div><div class="ml">最大回撤</div></div><div class="modal-mcard"><div class="mv">'+sharpe.toFixed(2)+'</div><div class="ml">Sharpe</div></div><div class="modal-mcard"><div class="mv">'+winR+'%</div><div class="ml">周胜率</div></div><div class="modal-mcard"><div class="mv">'+nW+'</div><div class="ml">数据周数</div></div>';document.getElementById('rangeInfo').textContent=nW+' 周 ('+dates[0]+' ~ '+dates[dates.length-1]+')';var navData=[];navsR.forEach(function(n,i){{if(n!==null)navData.push([dates[i],n]);}});var excData=[];excsR.forEach(function(n,i){{if(n!==null)excData.push([dates[i],n]);}});var ts=TS[currentTheme]||TS.dark;productChart1.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}}}},legend:{{bottom:0,textStyle:{{color:ts.alc}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}},boundaryGap:false}},yAxis:[{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return v.toFixed(3);}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return(v*100).toFixed(1)+'%';}},color:ts.alc}},splitLine:{{show:false}}}}],series:[{{name:'累计净值',type:'line',data:navData,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{{width:3,color:'#d4a050'}},itemStyle:{{color:'#d4a050'}}}},{{name:'超额收益',type:'line',yAxisIndex:1,data:excData,smooth:true,symbol:'diamond',symbolSize:4,lineStyle:{{width:2,color:'#60a5fa',type:'dashed'}},itemStyle:{{color:'#60a5fa'}}}}]}},true);var barData=wRets.map(function(r,i){{return[dates[i],{{value:r*100,itemStyle:{{color:r>=0?'#e74c3c':'#27ae60'}}}}];}});productChart2.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',axisPointer:{{type:'shadow'}},backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}},valueFormatter:function(v){{return v!=null?v.toFixed(2)+'%':'-';}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}}}},yAxis:{{type:'value',axisLabel:{{formatter:function(v){{return v.toFixed(1)+'%';}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},series:[{{type:'bar',data:barData,barWidth:'60%'}}]}},true);}}
+document.addEventListener('click',function(e){{if(e.target.id==='productModal')closeProductModal();var el=e.target.closest('.fund-link');if(el)showProductDetail(el.getAttribute('data-company'),el.getAttribute('data-strategy'));}});
+window.addEventListener('resize',function(){{if(productChart1)productChart1.resize();if(productChart2)productChart2.resize();}});
 async function checkPw(){{const i=document.getElementById('pwInput');const e=document.getElementById('pwErr');const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(i.value));const hex=Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');if(hex==='5856077678deae2bfae7a71271e97bb24337ca249bba1175fe1fa36a30d529e4'){{sessionStorage.setItem('cc_auth','1');document.getElementById('pwOverlay').classList.add('hide');document.getElementById('app').style.display=''}}else{{e.textContent='密码错误';document.querySelector('.pw-card').classList.add('shake');setTimeout(function(){{document.querySelector('.pw-card').classList.remove('shake')}},400);i.value=''}}}}document.addEventListener('DOMContentLoaded',function(){{if(sessionStorage.getItem('cc_auth')){{document.getElementById('pwOverlay').classList.add('hide');document.getElementById('app').style.display=''}}else{{document.getElementById('pwInput').focus()}}document.getElementById('pwInput').addEventListener('keydown',function(ev){{if(ev.key==='Enter')checkPw()}})}})
-</script></div></body></html>"""
+</script></div>
+<div class="modal-overlay" id="productModal">
+<div class="modal-content">
+<div class="modal-header">
+<h2 id="modalTitle"></h2>
+<button class="modal-close" onclick="closeProductModal()">✕ 关闭</button>
+</div>
+<div class="modal-body">
+<div class="modal-metrics" id="modalMetrics"></div>
+<div class="range-bar">
+<label>⏱ 时间范围</label>
+<select id="rangeStart" onchange="updateProductMetrics()"></select>
+<span style="color:var(--text-muted);font-size:12px">→</span>
+<select id="rangeEnd" onchange="updateProductMetrics()"></select>
+<span style="color:var(--text-muted);font-size:11px" id="rangeInfo"></span>
+</div>
+<div class="chart-inline"><div class="chart chart-half" id="chartProductNav"></div><div class="chart chart-half" id="chartProductWeekly"></div></div>
+</div>
+</div>
+</div>
+</body></html>"""
 
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(html)
