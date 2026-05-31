@@ -25,11 +25,10 @@ STRATEGY_CN = {
 
 def build_abs_data(cur):
     """Build absolute return DATA (original structure)."""
-    cur.execute("SELECT DISTINCT record_date FROM weekly_performances ORDER BY record_date")
-    dates = [r[0] for r in cur.fetchall()]
-
-    cur.execute("SELECT DISTINCT week_label FROM weekly_performances ORDER BY week_label")
-    week_labels = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT DISTINCT record_date, week_label FROM weekly_performances ORDER BY record_date")
+    rows = cur.fetchall()
+    dates = [r[0] for r in rows]
+    week_labels = [r[1] for r in rows]
 
     # Week info
     week_info = {}
@@ -165,11 +164,10 @@ def build_abs_data(cur):
 
 def build_excess_data(cur):
     """Build excess return DATA."""
-    cur.execute("SELECT DISTINCT record_date FROM weekly_performances ORDER BY record_date")
-    dates = [r[0] for r in cur.fetchall()]
-
-    cur.execute("SELECT DISTINCT week_label FROM weekly_performances ORDER BY week_label")
-    week_labels = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT DISTINCT record_date, week_label FROM weekly_performances ORDER BY record_date")
+    rows = cur.fetchall()
+    dates = [r[0] for r in rows]
+    week_labels = [r[1] for r in rows]
 
     week_info = {}
     for wl in week_labels:
@@ -316,11 +314,10 @@ def build_excess_data(cur):
 
 def build_excess_dd_data(cur):
     """Build excess drawdown DATA (ytd_excess_drawdown). Smaller = better."""
-    cur.execute("SELECT DISTINCT record_date FROM weekly_performances ORDER BY record_date")
-    dates = [r[0] for r in cur.fetchall()]
-
-    cur.execute("SELECT DISTINCT week_label FROM weekly_performances ORDER BY week_label")
-    week_labels = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT DISTINCT record_date, week_label FROM weekly_performances ORDER BY record_date")
+    rows = cur.fetchall()
+    dates = [r[0] for r in rows]
+    week_labels = [r[1] for r in rows]
 
     week_info = {}
     for wl in week_labels:
