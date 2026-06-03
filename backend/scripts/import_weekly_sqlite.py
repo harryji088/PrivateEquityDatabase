@@ -63,6 +63,7 @@ def create_schema(conn):
             ytd_return REAL,
             ytd_excess REAL,
             ytd_drawdown REAL,
+            ytd_excess_drawdown REAL,
             ann_return REAL,
             ann_vol REAL,
             max_drawdown REAL,
@@ -195,6 +196,7 @@ def parse_all_files():
                     get_val('ytd_return'),
                     get_val('ytd_excess'),
                     get_val('ytd_drawdown'),
+                    None,  # ytd_excess_drawdown — computed later from ytd_excess
                     get_val('ann_return'),
                     get_val('ann_vol'),
                     get_val('max_drawdown'),
@@ -257,7 +259,7 @@ def import_to_db(conn, all_records, company_set, fund_set):
     for rec in all_records:
         company_name, strategy_key, week_label, record_date, rank, \
             weekly_return, weekly_excess, ytd_return, ytd_excess, \
-            ytd_drawdown, ann_return, ann_vol, max_drawdown, sharpe, size_cat = rec
+            ytd_drawdown, ytd_excess_drawdown, ann_return, ann_vol, max_drawdown, sharpe, size_cat = rec
 
         fund_id = fund_ids.get((company_name, strategy_key))
         if not fund_id:
@@ -274,11 +276,13 @@ def import_to_db(conn, all_records, company_set, fund_set):
             cur.execute("""
                 UPDATE weekly_performances SET
                     rank=?, weekly_return=?, weekly_excess=?, ytd_return=?,
-                    ytd_excess=?, ytd_drawdown=?, ann_return=?, ann_vol=?,
+                    ytd_excess=?, ytd_drawdown=?, ytd_excess_drawdown=?,
+                    ann_return=?, ann_vol=?,
                     max_drawdown=?, sharpe=?, size_category=?, record_date=?
                 WHERE fund_id=? AND week_label=?
             """, (rank, weekly_return, weekly_excess, ytd_return, ytd_excess,
-                  ytd_drawdown, ann_return, ann_vol, max_drawdown, sharpe,
+                  ytd_drawdown, ytd_excess_drawdown, ann_return, ann_vol,
+                  max_drawdown, sharpe,
                   size_cat, record_date, fund_id, week_label))
             updated += 1
         else:
@@ -286,15 +290,178 @@ def import_to_db(conn, all_records, company_set, fund_set):
                 INSERT INTO weekly_performances
                     (fund_id, week_label, record_date, rank, weekly_return,
                      weekly_excess, ytd_return, ytd_excess, ytd_drawdown,
-                     ann_return, ann_vol, max_drawdown, sharpe, size_category)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     ytd_excess_drawdown, ann_return, ann_vol, max_drawdown,
+                     sharpe, size_category)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (fund_id, week_label, record_date, rank, weekly_return,
                   weekly_excess, ytd_return, ytd_excess, ytd_drawdown,
-                  ann_return, ann_vol, max_drawdown, sharpe, size_cat))
+                  ytd_excess_drawdown, ann_return, ann_vol, max_drawdown,
+                  sharpe, size_cat))
             inserted += 1
 
     conn.commit()
     print(f"  {inserted} inserted, {updated} updated, {skipped} skipped")
+
+    # Fill excess for market neutral (benchmark = 0, so excess = absolute return)
+    cur.execute("""
+        UPDATE weekly_performances
+        SET weekly_excess = COALESCE(weekly_excess, weekly_return),
+            ytd_excess = COALESCE(ytd_excess, ytd_return)
+        WHERE fund_id IN (SELECT id FROM funds WHERE strategy_type = 'market_neutral')
+    """)
+    conn.commit()
+    if cur.rowcount > 0:
+        print(f"  Filled excess for {cur.rowcount} market neutral records (benchmark=0)")
+
+    # Compute excess for 量化选股 using 中证1000 as benchmark
+    compute_stock_long_excess(conn, cur)
+
+    # Compute ytd_excess_drawdown for ALL strategies from ytd_excess
+    compute_excess_drawdown(conn, cur)
+
+
+def compute_stock_long_excess(conn, cur):
+    """Compute excess returns for 量化选股 (stock_long) using 中证1000 benchmark.
+
+    weekly_excess = fund_weekly_return - benchmark_weekly_return
+    ytd_excess = Π(1 + weekly_excess) - 1  (cumulative compounded)
+    """
+    import json
+    import os
+
+    benchmark_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "benchmark_nav.json"
+    )
+    if not os.path.exists(benchmark_path):
+        # Try relative to CWD
+        benchmark_path = "benchmark_nav.json"
+    if not os.path.exists(benchmark_path):
+        print("  [SKIP] benchmark_nav.json not found, cannot compute stock_long excess")
+        return
+
+    with open(benchmark_path, "r") as f:
+        bench_data = json.load(f)
+
+    zz1000 = bench_data.get("中证1000")
+    if not zz1000:
+        print("  [SKIP] 中证1000 not found in benchmark data")
+        return
+
+    # Build date -> NAV lookup
+    b_map = dict(zip(zz1000["dates"], zz1000["navs"]))
+
+    # Get all weeks sorted by record_date
+    cur.execute("""
+        SELECT DISTINCT week_label, record_date
+        FROM weekly_performances
+        ORDER BY record_date
+    """)
+    weeks = cur.fetchall()
+
+    # Compute benchmark weekly returns
+    # For week_i: return = NAV(record_date_i) / NAV(record_date_{i-1}) - 1
+    # For the first week: return = NAV(record_date_0) / NAV(first_available_date) - 1
+    bench_weekly = {}  # week_label -> benchmark weekly return
+    prev_nav = None
+    for wl, rd in weeks:
+        rd_str = rd.replace("-", "")
+        nav = b_map.get(rd_str)
+        if nav is None:
+            continue
+        if prev_nav is None:
+            # First week: use the first available benchmark date (start of week)
+            first_date = zz1000["dates"][0]
+            first_nav = zz1000["navs"][0]
+            if first_nav != 0:
+                bench_weekly[wl] = nav / first_nav - 1.0
+        else:
+            bench_weekly[wl] = nav / prev_nav - 1.0
+        prev_nav = nav
+
+    # Get stock_long fund IDs
+    cur.execute("SELECT id FROM funds WHERE strategy_type = 'stock_long'")
+    stock_long_ids = [r[0] for r in cur.fetchall()]
+
+    if not stock_long_ids:
+        print("  [SKIP] No stock_long funds found")
+        return
+
+    updated = 0
+    for fid in stock_long_ids:
+        # Get all weekly data for this fund, ordered by date
+        cur.execute("""
+            SELECT week_label, weekly_return
+            FROM weekly_performances
+            WHERE fund_id = ?
+            ORDER BY record_date
+        """, (fid,))
+        fund_weeks = {r[0]: r[1] for r in cur.fetchall()}
+
+        # Compute weekly_excess and cumulative ytd_excess
+        cum_excess = 0.0
+        for wl, rd in weeks:
+            if wl not in fund_weeks:
+                continue
+            weekly_ret = fund_weeks[wl]
+            bench_ret = bench_weekly.get(wl)
+
+            if weekly_ret is not None and bench_ret is not None:
+                weekly_excess = weekly_ret - bench_ret
+                cum_excess = (1.0 + cum_excess) * (1.0 + weekly_excess) - 1.0
+
+                cur.execute("""
+                    UPDATE weekly_performances
+                    SET weekly_excess = ?, ytd_excess = ?
+                    WHERE fund_id = ? AND week_label = ?
+                """, (round(weekly_excess, 10), round(cum_excess, 10), fid, wl))
+                updated += 1
+
+    conn.commit()
+    print(f"  Computed excess for {updated} stock_long records (benchmark=中证1000)")
+
+
+def compute_excess_drawdown(conn, cur):
+    """Compute ytd_excess_drawdown from ytd_excess for ALL funds.
+
+    excess_nav[i]  = 1.0 + ytd_excess[i]
+    peak[i]        = max(excess_nav[0..i])
+    drawdown[i]    = (excess_nav[i] - peak[i]) / peak[i]
+    """
+    cur.execute("SELECT id FROM funds")
+    fund_ids = [r[0] for r in cur.fetchall()]
+
+    updated = 0
+    for fid in fund_ids:
+        cur.execute("""
+            SELECT week_label, ytd_excess
+            FROM weekly_performances
+            WHERE fund_id = ? AND ytd_excess IS NOT NULL
+            ORDER BY record_date
+        """, (fid,))
+        rows = cur.fetchall()
+        if not rows:
+            continue
+
+        peak_excess_nav = -float("inf")
+        for wl, ytd_ex in rows:
+            excess_nav = 1.0 + ytd_ex
+            if excess_nav > peak_excess_nav:
+                peak_excess_nav = excess_nav
+            if peak_excess_nav != 0:
+                dd = (excess_nav - peak_excess_nav) / peak_excess_nav
+            else:
+                dd = 0.0
+
+            cur.execute("""
+                UPDATE weekly_performances
+                SET ytd_excess_drawdown = ?
+                WHERE fund_id = ? AND week_label = ?
+            """, (round(dd, 10), fid, wl))
+            updated += 1
+
+    conn.commit()
+    print(f"  Computed ytd_excess_drawdown for {updated} records across {len(fund_ids)} funds")
 
 
 def build_time_series(conn):

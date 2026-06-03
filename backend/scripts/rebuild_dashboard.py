@@ -53,21 +53,29 @@ def build_abs_data(cur):
     funds_data = []
     for fid, fname, company, strategy, size_cat in all_funds:
         cur.execute("""
-            SELECT week_label, ytd_return FROM weekly_performances
+            SELECT week_label, ytd_return, ytd_excess FROM weekly_performances
             WHERE fund_id = ? ORDER BY record_date
         """, (fid,))
-        nav_map = {r[0]: r[1] for r in cur.fetchall()}
+        week_map = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
 
         navs = []
+        excesses = []
         for wl in week_labels:
-            ytd = nav_map.get(wl)
-            navs.append(round(1.0 + ytd, 6) if ytd is not None else None)
+            pair = week_map.get(wl)
+            if pair is not None:
+                ytd, ytd_ex = pair
+                navs.append(round(1.0 + ytd, 6) if ytd is not None else None)
+                excesses.append(round(ytd_ex, 6) if ytd_ex is not None else None)
+            else:
+                navs.append(None)
+                excesses.append(None)
 
         funds_data.append({
             "company": company,
             "strategy": STRATEGY_CN.get(strategy, strategy),
             "size": norm_size(size_cat),
             "navs": navs,
+            "excesses": excesses,
         })
 
     # Strategy average NAVs and sizes
@@ -217,8 +225,6 @@ def build_excess_data(cur):
     strategy_navs = {}
     strategy_sizes = {}
     for s_key, s_cn in STRATEGY_CN.items():
-        if s_key in ("stock_long",):
-            continue
 
         cur.execute("""
             SELECT f.id FROM weekly_performances wp
@@ -284,8 +290,6 @@ def build_excess_data(cur):
     num_weeks = len(week_labels)
     fund_ranks = [[None] * num_weeks for _ in range(len(funds_data))]
     for s_key, s_cn in STRATEGY_CN.items():
-        if s_key == "stock_long":
-            continue
         strat_indices = [i for i, f in enumerate(funds_data) if f["strategy"] == s_cn]
         if not strat_indices:
             continue
@@ -363,12 +367,10 @@ def build_excess_dd_data(cur):
             "excesses": excesses,
         })
 
-    # Strategy averages (exclude stock_long)
+    # Strategy averages
     strategy_navs = {}
     strategy_sizes = {}
     for s_key, s_cn in STRATEGY_CN.items():
-        if s_key == "stock_long":
-            continue
 
         cur.execute("""
             SELECT f.id FROM weekly_performances wp
@@ -433,8 +435,6 @@ def build_excess_dd_data(cur):
     num_weeks = len(week_labels)
     fund_ranks = [[None] * num_weeks for _ in range(len(funds_data))]
     for s_key, s_cn in STRATEGY_CN.items():
-        if s_key == "stock_long":
-            continue
         strat_indices = [i for i, f in enumerate(funds_data) if f["strategy"] == s_cn]
         if not strat_indices:
             continue
@@ -1002,12 +1002,12 @@ function initAll() {{
 initAll();
 function fundLink(c,s){{return '<span class="fund-link" data-company="'+c+'" data-strategy="'+s+'">'+c+'</span>';}}
 var productChart1=null,productChart2=null,currentPFund=null;
-function showProductDetail(company,strategy){{var f=DATA.funds.find(function(ff){{return ff.company===company&&ff.strategy===strategy;}});if(!f)return;currentPFund=f;document.getElementById('modalTitle').textContent=f.company+' · '+f.strategy+' · '+f.size;var dates=DATA.dates,ws=dates.length,selS=document.getElementById('rangeStart'),selE=document.getElementById('rangeEnd');selS.innerHTML='';selE.innerHTML='';dates.forEach(function(d,i){{var opt='<option value="'+i+'">'+d.slice(5)+'</option>';selS.innerHTML+=opt;selE.innerHTML+=opt;}});selS.value=0;selE.value=ws-1;document.getElementById('productModal').classList.add('show');if(!productChart1){{productChart1=echarts.init(document.getElementById('chartProductNav'));productChart2=echarts.init(document.getElementById('chartProductWeekly'));}}else{{productChart1.resize();productChart2.resize();}}updateProductMetrics();}}
+function showProductDetail(company,strategy){{var f=ABS_DATA.funds.find(function(ff){{return ff.company===company&&ff.strategy===strategy;}});if(!f)return;currentPFund=f;document.getElementById('modalTitle').textContent=f.company+' · '+f.strategy+' · '+f.size;var dates=ABS_DATA.dates,ws=dates.length,selS=document.getElementById('rangeStart'),selE=document.getElementById('rangeEnd');selS.innerHTML='';selE.innerHTML='';dates.forEach(function(d,i){{var opt='<option value="'+i+'">'+d.slice(5)+'</option>';selS.innerHTML+=opt;selE.innerHTML+=opt;}});selS.value=0;selE.value=ws-1;document.getElementById('productModal').classList.add('show');setTimeout(function(){{if(!productChart1){{productChart1=echarts.init(document.getElementById('chartProductNav'));productChart2=echarts.init(document.getElementById('chartProductWeekly'));}}else{{productChart1.resize();productChart2.resize();}}updateProductMetrics();}},50);}}
 function closeProductModal(){{document.getElementById('productModal').classList.remove('show');currentPFund=null;}}
-function updateProductMetrics(){{var f=currentPFund;if(!f)return;var sI=parseInt(document.getElementById('rangeStart').value),eI=parseInt(document.getElementById('rangeEnd').value);if(eI<sI){{var t=sI;sI=eI;eI=t;}}var dates=DATA.dates.slice(sI,eI+1),wlabs=DATA.weekLabels.slice(sI,eI+1),navsR=f.navs.slice(sI,eI+1),excsR=f.excesses.slice(sI,eI+1),wData=[];wlabs.forEach(function(w){{var wd=DATA.weeklyData[w];if(wd){{var e=wd.find(function(r){{return r.company===f.company&&r.strategy===f.strategy;}});if(e)wData.push(e);}}}});var nW=wData.length,allNavs=navsR.filter(function(n){{return n!==null;}}),allExcs=excsR.filter(function(n){{return n!==null;}}),sNav=navsR.find(function(n){{return n!==null;}})||1,eNav=allNavs.length?allNavs[allNavs.length-1]:sNav,totRet=(eNav/sNav-1)*100,annR=(Math.pow(eNav/sNav,52/Math.max(1,nW))-1)*100,sExc=excsR.find(function(n){{return n!==null;}})||0,eExc=allExcs.length?allExcs[allExcs.length-1]:sExc,totExc=(eExc-sExc)*100,wRets=wData.map(function(w){{return IS_EXCESS?w.weekly_excess:w.weekly_return;}});var meanR=nW>0?wRets.reduce(function(a,b){{return a+b;}},0)/nW:0,variance=nW>0?wRets.reduce(function(sum,r){{return sum+Math.pow(r-meanR,2);}},0)/nW:0,annVol=Math.sqrt(Math.max(0,variance)*52)*100,sharpe=annVol>0?(annR/annVol):0,peak=-Infinity,maxDD=0;navsR.forEach(function(n){{if(n===null)return;if(n>peak)peak=n;var dd=(n-peak)/peak;if(dd<maxDD)maxDD=dd;}});var up=wRets.filter(function(r){{return r>0;}}).length,winR=nW>0?(up/nW*100).toFixed(1):'-',wcPct=(maxDD*100).toFixed(2),upCls=totRet>=0?'nav-up':'nav-down',ddCls=maxDD===0?'nav-up':'nav-down';document.getElementById('modalMetrics').innerHTML='<div class="modal-mcard"><div class="mv '+upCls+'">'+(totRet>=0?'+':'')+totRet.toFixed(2)+'%</div><div class="ml">区间累计收益</div></div><div class="modal-mcard"><div class="mv '+upCls+'">'+(annR>=0?'+':'')+annR.toFixed(2)+'%</div><div class="ml">年化收益</div></div><div class="modal-mcard"><div class="mv '+(totExc>=0?'nav-up':'nav-down')+'">'+(totExc>=0?'+':'')+totExc.toFixed(2)+'%</div><div class="ml">累计超额</div></div><div class="modal-mcard"><div class="mv">'+annVol.toFixed(2)+'%</div><div class="ml">年化波动率</div></div><div class="modal-mcard"><div class="mv '+ddCls+'">'+wcPct+'%</div><div class="ml">最大回撤</div></div><div class="modal-mcard"><div class="mv">'+sharpe.toFixed(2)+'</div><div class="ml">Sharpe</div></div><div class="modal-mcard"><div class="mv">'+winR+'%</div><div class="ml">周胜率</div></div><div class="modal-mcard"><div class="mv">'+nW+'</div><div class="ml">数据周数</div></div>';document.getElementById('rangeInfo').textContent=nW+' 周 ('+dates[0]+' ~ '+dates[dates.length-1]+')';var navData=[];navsR.forEach(function(n,i){{if(n!==null)navData.push([dates[i].slice(5),n]);}});var excData=[];excsR.forEach(function(n,i){{if(n!==null)excData.push([dates[i].slice(5),n]);}});var ts=TS[currentTheme]||TS.dark;productChart1.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}}}},legend:{{bottom:0,textStyle:{{color:ts.alc}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}},boundaryGap:false}},yAxis:[{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return v.toFixed(3);}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return(v*100).toFixed(1)+'%';}},color:ts.alc}},splitLine:{{show:false}}}}],series:[{{name:'累计净值',type:'line',data:navData,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{{width:3,color:'#d4a050'}},itemStyle:{{color:'#d4a050'}}}},{{name:'超额收益',type:'line',yAxisIndex:1,data:excData,smooth:true,symbol:'diamond',symbolSize:4,lineStyle:{{width:2,color:'#60a5fa',type:'dashed'}},itemStyle:{{color:'#60a5fa'}}}}]}},true);var barData=wRets.map(function(r,i){{return[dates[i].slice(5),{{value:r*100,itemStyle:{{color:r>=0?'#e74c3c':'#27ae60'}}}}];}});productChart2.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',axisPointer:{{type:'shadow'}},backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}},valueFormatter:function(v){{return v!=null?v.toFixed(2)+'%':'-';}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}}}},yAxis:{{type:'value',axisLabel:{{formatter:function(v){{return v.toFixed(1)+'%';}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},series:[{{type:'bar',data:barData,barWidth:'60%'}}]}},true);}}
+function updateProductMetrics(){{var f=currentPFund;if(!f)return;var sI=parseInt(document.getElementById('rangeStart').value),eI=parseInt(document.getElementById('rangeEnd').value);if(eI<sI){{var t=sI;sI=eI;eI=t;}}var dates=ABS_DATA.dates.slice(sI,eI+1),wlabs=ABS_DATA.weekLabels.slice(sI,eI+1),navsR=f.navs.slice(sI,eI+1),excsR=f.excesses.slice(sI,eI+1),wData=[];wlabs.forEach(function(w){{var wd=ABS_DATA.weeklyData[w];if(wd){{var e=wd.find(function(r){{return r.company===f.company&&r.strategy===f.strategy;}});if(e)wData.push(e);}}}});var nW=wData.length,allNavs=navsR.filter(function(n){{return n!==null;}}),allExcs=excsR.filter(function(n){{return n!==null;}}),sNav=navsR.find(function(n){{return n!==null;}})||1,eNav=allNavs.length?allNavs[allNavs.length-1]:sNav,totRet=(eNav/sNav-1)*100,annR=(Math.pow(eNav/sNav,52/Math.max(1,nW))-1)*100,sExc=excsR.find(function(n){{return n!==null;}})||0,eExc=allExcs.length?allExcs[allExcs.length-1]:sExc,totExc=(eExc-sExc)*100,wRets=wData.map(function(w){{return w.weekly_return;}});var meanR=nW>0?wRets.reduce(function(a,b){{return a+b;}},0)/nW:0,variance=nW>0?wRets.reduce(function(sum,r){{return sum+Math.pow(r-meanR,2);}},0)/nW:0,annVol=Math.sqrt(Math.max(0,variance)*52)*100,sharpe=annVol>0?(annR/annVol):0,peak=-Infinity,maxDD=0;navsR.forEach(function(n){{if(n===null)return;if(n>peak)peak=n;var dd=(n-peak)/peak;if(dd<maxDD)maxDD=dd;}});var up=wRets.filter(function(r){{return r>0;}}).length,winR=nW>0?(up/nW*100).toFixed(1):'-',wcPct=(maxDD*100).toFixed(2),upCls=totRet>=0?'nav-up':'nav-down',ddCls=maxDD===0?'nav-up':'nav-down';document.getElementById('modalMetrics').innerHTML='<div class="modal-mcard"><div class="mv '+upCls+'">'+(totRet>=0?'+':'')+totRet.toFixed(2)+'%</div><div class="ml">区间累计收益</div></div><div class="modal-mcard"><div class="mv '+upCls+'">'+(annR>=0?'+':'')+annR.toFixed(2)+'%</div><div class="ml">年化收益</div></div><div class="modal-mcard"><div class="mv '+(totExc>=0?'nav-up':'nav-down')+'">'+(totExc>=0?'+':'')+totExc.toFixed(2)+'%</div><div class="ml">累计超额</div></div><div class="modal-mcard"><div class="mv">'+annVol.toFixed(2)+'%</div><div class="ml">年化波动率</div></div><div class="modal-mcard"><div class="mv '+ddCls+'">'+wcPct+'%</div><div class="ml">最大回撤</div></div><div class="modal-mcard"><div class="mv">'+sharpe.toFixed(2)+'</div><div class="ml">Sharpe</div></div><div class="modal-mcard"><div class="mv">'+winR+'%</div><div class="ml">周胜率</div></div><div class="modal-mcard"><div class="mv">'+nW+'</div><div class="ml">数据周数</div></div>';document.getElementById('rangeInfo').textContent=nW+' 周 ('+dates[0]+' ~ '+dates[dates.length-1]+')';var navData=[];navsR.forEach(function(n,i){{if(n!==null)navData.push([dates[i].slice(5),n]);}});var excData=[];excsR.forEach(function(n,i){{if(n!==null)excData.push([dates[i].slice(5),n]);}});var ts=TS[currentTheme]||TS.dark;productChart1.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}}}},legend:{{bottom:0,textStyle:{{color:ts.alc}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}},boundaryGap:false}},yAxis:[{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return v.toFixed(3);}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return(v*100).toFixed(1)+'%';}},color:ts.alc}},splitLine:{{show:false}}}}],series:[{{name:'累计净值',type:'line',data:navData,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{{width:3,color:'#d4a050'}},itemStyle:{{color:'#d4a050'}},tooltip:{{valueFormatter:function(v){{return v!=null?v.toFixed(4):'-';}}}}}},{{name:'超额收益',type:'line',yAxisIndex:1,data:excData,smooth:true,symbol:'diamond',symbolSize:4,lineStyle:{{width:2,color:'#60a5fa',type:'dashed'}},itemStyle:{{color:'#60a5fa'}},tooltip:{{valueFormatter:function(v){{return v!=null?(v*100).toFixed(2)+'%':'-';}}}}}}]}},true);var peakExc=-Infinity,ddData=[];excsR.forEach(function(n,i){{if(n!==null){{if(n>peakExc)peakExc=n;ddData.push([dates[i].slice(5),(n-peakExc)*100]);}}}});try{{var ddGrad=typeof echarts!=='undefined'?new echarts.graphic.LinearGradient(0,0,0,1,[{{offset:0,color:'rgba(231,76,60,0.35)'}},{{offset:1,color:'rgba(231,76,60,0.02)'}}]):'rgba(231,76,60,0.15)';productChart2.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}},valueFormatter:function(v){{return v!=null?v.toFixed(2)+'%':'-';}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}},boundaryGap:false}},yAxis:{{type:'value',max:0,axisLabel:{{formatter:function(v){{return v.toFixed(1)+'%';}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},series:[{{name:'超额回撤',type:'line',data:ddData,smooth:true,symbol:'none',lineStyle:{{width:2,color:'#e74c3c'}},areaStyle:{{color:ddGrad}}}}]}},true);productChart2.resize();}}catch(e){{console.error('productChart2 error:',e);}}}}
 document.addEventListener('click',function(e){{if(e.target.id==='productModal')closeProductModal();var el=e.target.closest('.fund-link');if(el)showProductDetail(el.getAttribute('data-company'),el.getAttribute('data-strategy'));}});
 window.addEventListener('resize',function(){{if(productChart1)productChart1.resize();if(productChart2)productChart2.resize();}});
-async function checkPw(){{const i=document.getElementById('pwInput');const e=document.getElementById('pwErr');const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(i.value));const hex=Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');if(hex==='5856077678deae2bfae7a71271e97bb24337ca249bba1175fe1fa36a30d529e4'){{sessionStorage.setItem('cc_auth','1');document.getElementById('pwOverlay').classList.add('hide');document.getElementById('app').style.display=''}}else{{e.textContent='密码错误';document.querySelector('.pw-card').classList.add('shake');setTimeout(function(){{document.querySelector('.pw-card').classList.remove('shake')}},400);i.value=''}}}}document.addEventListener('DOMContentLoaded',function(){{if(sessionStorage.getItem('cc_auth')){{document.getElementById('pwOverlay').classList.add('hide');document.getElementById('app').style.display=''}}else{{document.getElementById('pwInput').focus()}}document.getElementById('pwInput').addEventListener('keydown',function(ev){{if(ev.key==='Enter')checkPw()}})}})
+async function checkPw(){{const i=document.getElementById('pwInput');const e=document.getElementById('pwErr');const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(i.value));const hex=Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');if(hex==='5856077678deae2bfae7a71271e97bb24337ca249bba1175fe1fa36a30d529e4'){{sessionStorage.setItem('cc_auth','1');document.getElementById('pwOverlay').classList.add('hide');document.getElementById('app').style.display='';setTimeout(function(){{cS&&cS.resize();cG&&cG.resize();cF&&cF.resize();}},100)}}else{{e.textContent='密码错误';document.querySelector('.pw-card').classList.add('shake');setTimeout(function(){{document.querySelector('.pw-card').classList.remove('shake')}},400);i.value=''}}}}document.addEventListener('DOMContentLoaded',function(){{if(sessionStorage.getItem('cc_auth')){{document.getElementById('pwOverlay').classList.add('hide');document.getElementById('app').style.display='';setTimeout(function(){{cS&&cS.resize();cG&&cG.resize();cF&&cF.resize();}},100)}}else{{document.getElementById('pwInput').focus()}}document.getElementById('pwInput').addEventListener('keydown',function(ev){{if(ev.key==='Enter')checkPw()}})}})
 </script></div>
 <div class="modal-overlay" id="productModal">
 <div class="modal-content">
