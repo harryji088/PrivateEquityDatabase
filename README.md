@@ -9,7 +9,7 @@
 | 基金公司 | 138 家 |
 | 基金产品 | 370 只 |
 | 策略类型 | 7 种 |
-| 覆盖周数 | 20 周（2026/01/09 – 2026/05/29）|
+| 覆盖周数 | 21 周（2026/01/09 – 2026/06/05）|
 | 基准指数 | 6 条（沪深300、中证500、中证1000、中证2000、A500、万得全A）|
 
 ### 策略分类
@@ -30,10 +30,11 @@
 CC/
 ├── data/                              # 20 个源 Excel 周报
 │   └── 点睛业绩放送_*.xlsx
-├── benchmark_nav.json                 # 基准指数日频净值（AKShare 拉取）
+├── benchmark_nav.json                 # 基准指数日频净值（CSIndex 官网 API）
 ├── backend/
 │   └── scripts/
 │       ├── import_weekly_sqlite.py     # 数据导入：Excel → SQLite
+│       ├── update_benchmark.py        # 基准更新：CSIndex API → benchmark_nav.json
 │       └── rebuild_dashboard.py       # 看板生成：SQLite → dashboard.html
 ├── dashboard.html                      # 最终产物：自包含交互看板 (~2.2MB)
 ├── cc_data.sqlite3                     # SQLite 数据库
@@ -90,7 +91,15 @@ Excel 原始数据
 - **规模分类标准化**：`~` → `-`（如 `50~100亿`）
 - **累计净值**：`nav = 1.0 + ytd_return`（年初 = 1.0），缺失周保持空值不填充
 
-### 2. 生成看板
+### 2. 更新基准指数数据
+
+```bash
+cd backend && python3 scripts/update_benchmark.py
+```
+
+从 **CSIndex 官网 API** (`csindex.com.cn`) 拉取 6 个基准指数的日频收盘价，增量追加到 `benchmark_nav.json`。AKShare 不再使用（中证2000 的 Sina API 已不可用）。
+
+### 3. 生成看板
 
 ```bash
 cd backend && python3 scripts/rebuild_dashboard.py
@@ -151,18 +160,19 @@ cd backend && python3 scripts/rebuild_dashboard.py
 | 层 | 技术 |
 |----|------|
 | 数据导入 | Python 3.9+, openpyxl, sqlite3 |
+| 基准数据 | CSIndex 官网 API (`csindex.com.cn`) |
 | 看板生成 | Python f-string 模板，内嵌 JS/CSS |
 | 图表 | ECharts 5 (CDN)，含 LinearGradient 面积图 |
 | 样式 | CSS 自定义属性，暗色/亮色双主题 |
 | 数据存储 | SQLite（cc_data.sqlite3），JSON（benchmark_nav.json）|
-| 部署形态 | 单文件 HTML（~2.2MB），零依赖浏览器打开 |
+| 部署形态 | 单文件 HTML（~2.7MB），零依赖浏览器打开 |
 
 ## 未来扩展
 
 - `frontend/` React SPA 对接 PostgreSQL，支持增删改查
 - `backend/` FastAPI 已完成 CRUD 脚手架（9 个 domain），待灌入真实数据
-- 基准数据可通过 AKShare 自动拉取更新
+- 基准数据通过 CSIndex 官网 API 自动拉取更新（AKShare 已弃用，中证2000 的 Sina 源不可用）
 
 ---
 
-*数据来源：点睛业绩放送 周度 Excel 报告（2026/01 – 2026/05）*
+*数据来源：点睛业绩放送 周度 Excel 报告（2026/01 – 2026/06）*

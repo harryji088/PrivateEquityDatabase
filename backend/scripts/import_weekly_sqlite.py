@@ -638,12 +638,17 @@ def build_time_series(conn):
 
 
 def main():
+    full_rebuild = "--full" in sys.argv or "--rebuild" in sys.argv
+
     print("=" * 60)
     print("  量化私募周度业绩数据导入工具")
+    if full_rebuild:
+        print("  Mode: FULL rebuild (--full)")
+    else:
+        print("  Mode: INCREMENTAL (use --full to force rebuild)")
     print("=" * 60)
 
-    # Remove old DB if exists
-    if DB_PATH.exists():
+    if full_rebuild and DB_PATH.exists():
         DB_PATH.unlink()
         print(f"Removed old database: {DB_PATH}")
 
@@ -651,12 +656,37 @@ def main():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
 
-    # Create schema
+    # Create schema (no-op if tables already exist)
     create_schema(conn)
+
+    # Check existing weeks before import (for incremental reporting)
+    existing_weeks = set()
+    if not full_rebuild:
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT DISTINCT week_label FROM weekly_performances")
+            existing_weeks = {r[0] for r in cur.fetchall()}
+        except sqlite3.OperationalError:
+            pass  # table doesn't exist yet (first run)
 
     # Parse all Excel files
     print(f"\nSource directory: {DATA_DIR}")
     all_records, company_set, fund_set = parse_all_files()
+
+    # Report new vs existing weeks
+    new_weeks = set()
+    for rec in all_records:
+        new_weeks.add(rec[2])  # week_label is 3rd element
+    fresh_weeks = new_weeks - existing_weeks
+    if existing_weeks:
+        print(f"  Existing weeks in DB: {len(existing_weeks)}")
+        print(f"  New weeks to import:  {len(fresh_weeks)}")
+        if fresh_weeks:
+            print(f"  New: {', '.join(sorted(fresh_weeks))}")
+        else:
+            print(f"  ✅ Database is up to date — no new weeks found")
+    elif new_weeks:
+        print(f"  Weeks to import: {len(new_weeks)}")
 
     # Import to database
     import_to_db(conn, all_records, company_set, fund_set)

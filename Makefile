@@ -31,6 +31,19 @@ migrate-create:
 seed:
 	cd backend && python scripts/seed_data.py
 
+# Data pipeline (SQLite + dashboard)
+import-weekly:
+	cd backend && python scripts/import_weekly_sqlite.py
+
+update-benchmark:
+	cd backend && python scripts/update_benchmark.py
+
+rebuild-dashboard:
+	cd backend && python scripts/rebuild_dashboard.py
+
+update-data: import-weekly update-benchmark rebuild-dashboard
+	@echo "✅ Data pipeline complete"
+
 # Run both (requires 2 terminals)
 dev:
 	@echo "Run 'make backend-dev' and 'make frontend-dev' in separate terminals"

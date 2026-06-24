@@ -25,6 +25,12 @@ make seed                 # seed_data.py — generates 50+ fake funds with 2yr N
 # Import real weekly data (SQLite, self-contained)
 cd backend && python scripts/import_weekly_sqlite.py
 
+# Update benchmark index data (CSIndex API → benchmark_nav.json)
+cd backend && python scripts/update_benchmark.py
+
+# Rebuild dashboard HTML (SQLite + benchmark_nav.json → dashboard.html)
+cd backend && python scripts/rebuild_dashboard.py
+
 # Tests
 make test                 # cd backend && pytest (asyncio_mode=auto)
 
@@ -119,9 +125,13 @@ Strategy-to-benchmark mapping for excess return:
 
 1. 19 weekly Excel files in `data/` with 7 strategy sheets each (varying 14-17 column layouts)
 2. `backend/scripts/import_weekly_sqlite.py` parses them, normalizes size categories (`~` → `-`), creates SQLite DB
-3. `cumulative_nav_weekly.csv` exports the merged time series (370 funds × 19 weeks)
+3. `merged_weekly_returns.csv` exports the merged time series (383 funds × 23 weeks)
 4. `dashboard.html` generator embeds all data + benchmark daily NAV series
-5. Benchmark data fetched via AKShare `stock_zh_index_daily` (sina source, works through VPN)
+5. Benchmark data fetched via **CSIndex 官网 API** (不是 AKShare):
+   - 端点: `https://www.csindex.com.cn/csindex-home/perf/index-perf?indexCode={code}&startDate={start}&endDate={end}`
+   - 所有 6 个基准指数统一用此 API，AKShare 的 `stock_zh_index_daily` **不再使用**
+   - ⚠️ **中证2000 (932000) 的 AKShare/Sina API 已不可用 (返回 null)**，必须用 CSIndex API
+   - 指数代码对照: 沪深300→000300, 中证500→000905, 中证800→000906, 中证1000→000852, 中证2000→932000, A500→000510
 
 ### Python 3.9 Compatibility
 
@@ -133,5 +143,5 @@ The SQLite import script targets Python 3.9. Must use:
 ### Git/Network Notes
 
 - Proxy on port 7890 (Clash) for GitHub access: `git -c http.proxy=http://127.0.0.1:7890`
-- Chinese data sources (AKShare) need direct connection (no proxy)
+- Chinese data sources (CSIndex API) need direct connection (no proxy)
 - `.gitignore` excludes `*.sqlite3*` (including WAL/SHM), `*.csv` (except `data/*.csv`)

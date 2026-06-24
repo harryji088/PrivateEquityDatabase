@@ -36,6 +36,12 @@ env/
 .DS_Store
 Thumbs.db
 
+# Temp Excel lock files
+data/~$*
+
+# Temp analysis output
+output/
+
 # Frontend
 frontend/node_modules/
 frontend/dist/
