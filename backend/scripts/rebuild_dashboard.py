@@ -7,9 +7,11 @@ import sqlite3
 import json
 import math
 
-DB_PATH = "/Users/harryji/Documents/trae_projects/CC/cc_data.sqlite3"
-BENCHMARK_PATH = "/Users/harryji/Documents/trae_projects/CC/benchmark_nav.json"
-OUTPUT_PATH = "/Users/harryji/Documents/trae_projects/CC/dashboard.html"
+import os
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DB_PATH = os.path.join(PROJECT_ROOT, "cc_data.sqlite3")
+BENCHMARK_PATH = os.path.join(PROJECT_ROOT, "benchmark_nav.json")
+OUTPUT_PATH = os.path.join(PROJECT_ROOT, "dashboard.html")
 
 def norm_size(sz):
     """Normalize size category: 50-100亿 → 50~100亿"""

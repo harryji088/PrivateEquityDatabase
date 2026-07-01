@@ -36,11 +36,16 @@ env/
 .DS_Store
 Thumbs.db
 
-# Temp Excel lock files
+# Data files (local only, not synced)
+data/*.xlsx
+data/*.xls
 data/~$*
 
 # Temp analysis output
 output/
+
+# Local research materials (not for GitHub)
+点睛焱究所/
 
 # Frontend
 frontend/node_modules/
