@@ -1037,11 +1037,18 @@ async function checkPw(){{const i=document.getElementById('pwInput');const e=doc
 
     print(f"\nWritten {OUTPUT_PATH}: {len(html)} chars")
 
-    # Also sync index.html for GitHub Pages root URL
+    # Also sync index.html for local opening
     index_path = OUTPUT_PATH.replace("dashboard.html", "index.html")
     with open(index_path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Synced {index_path}: {len(html)} chars")
+
+    # Also sync docs/index.html for GitHub Pages deployment
+    docs_path = os.path.join(PROJECT_ROOT, "docs", "index.html")
+    os.makedirs(os.path.dirname(docs_path), exist_ok=True)
+    with open(docs_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"Synced {docs_path}: {len(html)} chars")
 
 
 if __name__ == "__main__":
