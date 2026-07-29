@@ -7,6 +7,7 @@ Usage:
 """
 
 import json
+import ssl
 import urllib.request
 from datetime import date
 from pathlib import Path
@@ -31,7 +32,8 @@ def fetch_index_data(index_code: str, start_date: str, end_date: str) -> dict[st
     """Fetch daily close prices from CSIndex API. Returns {date_str: close_price}."""
     url = f"{CSINDEX_API}?indexCode={index_code}&startDate={start_date}&endDate={end_date}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    ctx = ssl._create_unverified_context()
+    with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
         result = json.loads(resp.read())
 
     if result.get("code") != "200":
