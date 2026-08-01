@@ -32,6 +32,13 @@ STRATEGY_MAP = {
 }
 STRATEGY_CN = {v: k for k, v in STRATEGY_MAP.items()}
 
+# 同一公司不同名称的归一化映射
+COMPANY_NAME_NORMALIZE = {
+    "嘉石大岩": "大岩资本",
+    "海南进化论": "进化论资产",
+    "衍盛私募": "衍盛资产",
+}
+
 
 def create_schema(conn):
     """Create database tables."""
@@ -157,10 +164,13 @@ def parse_all_files():
                 if not company_name or company_name in ('None', ''):
                     break
 
+                # 归一化公司名称 (e.g. 嘉石大岩→大岩资本, 海南进化论→进化论资产)
+                company_name = COMPANY_NAME_NORMALIZE.get(company_name, company_name)
+
                 def sf(val):
                     if val is None: return None
                     try: return float(val)
-                    except: return None
+                    except (TypeError, ValueError): return None
 
                 date_val = row[col_map.get('date')]
                 if isinstance(date_val, datetime):
@@ -370,14 +380,26 @@ def compute_stock_long_excess(conn, cur):
         if nav is None:
             continue
         if prev_nav is None:
-            # First week: use the first available benchmark date (start of week)
-            first_date = zz1000["dates"][0]
-            first_nav = zz1000["navs"][0]
-            if first_nav != 0:
+            # First week: anchor at year-start baseline (2025-12-31) so the
+            # benchmark covers 12-31 -> 0109, matching the fund's ytd basis
+            # (the first week's weekly_return IS the ytd_return from 12-31).
+            first_nav = b_map.get("20251231")
+            if first_nav and first_nav != 0:
                 bench_weekly[wl] = nav / first_nav - 1.0
         else:
             bench_weekly[wl] = nav / prev_nav - 1.0
         prev_nav = nav
+
+    # Benchmark cumulative return from year-start (2025-12-31) baseline,
+    # used for the geometric ytd_excess (= fund ytd vs benchmark ytd).
+    base_nav = b_map.get("20251231")
+    bench_cum = {}  # week_label -> benchmark cumulative return from 12-31
+    if base_nav and base_nav != 0:
+        for wl, rd in weeks:
+            rd_str = rd.replace("-", "")
+            nav = b_map.get(rd_str)
+            if nav is not None:
+                bench_cum[wl] = nav / base_nav - 1.0
 
     # Get stock_long fund IDs
     cur.execute("SELECT id FROM funds WHERE strategy_type = 'stock_long'")
@@ -391,34 +413,43 @@ def compute_stock_long_excess(conn, cur):
     for fid in stock_long_ids:
         # Get all weekly data for this fund, ordered by date
         cur.execute("""
-            SELECT week_label, weekly_return
+            SELECT week_label, weekly_return, ytd_return
             FROM weekly_performances
             WHERE fund_id = ?
             ORDER BY record_date
         """, (fid,))
-        fund_weeks = {r[0]: r[1] for r in cur.fetchall()}
+        fund_weeks = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
 
-        # Compute weekly_excess and cumulative ytd_excess
-        cum_excess = 0.0
         for wl, rd in weeks:
             if wl not in fund_weeks:
                 continue
-            weekly_ret = fund_weeks[wl]
+            weekly_ret, ytd_ret = fund_weeks[wl]
             bench_ret = bench_weekly.get(wl)
+            bench_c = bench_cum.get(wl)
 
-            if weekly_ret is not None and bench_ret is not None:
-                weekly_excess = weekly_ret - bench_ret
-                cum_excess = (1.0 + cum_excess) * (1.0 + weekly_excess) - 1.0
+            weekly_excess = None
+            ytd_excess = None
+            # Single-week geometric excess
+            if weekly_ret is not None and bench_ret is not None and (1.0 + bench_ret) != 0:
+                weekly_excess = (1.0 + weekly_ret) / (1.0 + bench_ret) - 1.0
+            # Cumulative geometric excess — self-consistent: equals
+            # (1+fund_ytd)/(1+bench_ytd) - 1 directly, not a weekly-compounded
+            # estimate (which diverges when ∏(1+weekly_return) != 1+ytd_return).
+            if ytd_ret is not None and bench_c is not None and (1.0 + bench_c) != 0:
+                ytd_excess = (1.0 + ytd_ret) / (1.0 + bench_c) - 1.0
 
+            if weekly_excess is not None or ytd_excess is not None:
                 cur.execute("""
                     UPDATE weekly_performances
                     SET weekly_excess = ?, ytd_excess = ?
                     WHERE fund_id = ? AND week_label = ?
-                """, (round(weekly_excess, 10), round(cum_excess, 10), fid, wl))
+                """, (None if weekly_excess is None else round(weekly_excess, 10),
+                      None if ytd_excess is None else round(ytd_excess, 10),
+                      fid, wl))
                 updated += 1
 
     conn.commit()
-    print(f"  Computed excess for {updated} stock_long records (benchmark=中证1000)")
+    print(f"  Computed excess for {updated} stock_long records (benchmark=中证1000, geometric)")
 
 
 def compute_excess_drawdown(conn, cur):

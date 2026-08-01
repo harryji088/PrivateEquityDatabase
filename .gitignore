@@ -32,6 +32,10 @@ env/
 *.csv
 !data/*.csv
 
+# Generated dashboard HTML (only docs/index.html is tracked for GitHub Pages)
+/dashboard.html
+/index.html
+
 # OS
 .DS_Store
 Thumbs.db
@@ -46,6 +50,9 @@ output/
 
 # Local research materials (not for GitHub)
 点睛焱究所/
+市场报告/
+管理人/
+scripts/ima/cache/
 
 # Frontend
 frontend/node_modules/

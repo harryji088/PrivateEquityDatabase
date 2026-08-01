@@ -1,60 +1,23 @@
-.PHONY: dev backend frontend seed migrate test
+.PHONY: import-weekly update-benchmark rebuild-dashboard update-data test
 
-# Start PostgreSQL + Redis
-db-up:
-	docker compose up -d db redis
+# ── Data pipeline (SQLite + self-contained dashboard) ──
 
-db-down:
-	docker compose stop db redis
-
-# Backend
-backend-dev:
-	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-backend-install:
-	cd backend && pip install -e ".[dev]"
-
-# Frontend
-frontend-dev:
-	cd frontend && npm run dev
-
-frontend-install:
-	cd frontend && npm install
-
-# Database
-migrate:
-	cd backend && alembic upgrade head
-
-migrate-create:
-	cd backend && alembic revision --autogenerate -m "$(msg)"
-
-seed:
-	cd backend && python scripts/seed_data.py
-
-# Data pipeline (SQLite + dashboard)
 import-weekly:
-	cd backend && python scripts/import_weekly_sqlite.py
+	cd backend && python3 scripts/import_weekly_sqlite.py
 
 update-benchmark:
-	cd backend && python scripts/update_benchmark.py
+	cd backend && python3 scripts/update_benchmark.py
 
 rebuild-dashboard:
-	cd backend && python scripts/rebuild_dashboard.py
+	cd backend && python3 scripts/rebuild_dashboard.py
 
-update-data: import-weekly update-benchmark rebuild-dashboard
+# Full pipeline. NOTE: update-benchmark MUST run before import-weekly —
+# import computes stock_long excess returns from benchmark_nav.json,
+# so it needs the freshly fetched benchmark data.
+update-data: update-benchmark import-weekly rebuild-dashboard
 	@echo "✅ Data pipeline complete"
 
-# Run both (requires 2 terminals)
-dev:
-	@echo "Run 'make backend-dev' and 'make frontend-dev' in separate terminals"
+# ── Tests (core calculation logic) ──
 
-# Tests
 test:
-	cd backend && pytest
-
-# Docker
-docker-up:
-	docker compose up -d
-
-docker-down:
-	docker compose down
+	cd backend && python3 -m pytest

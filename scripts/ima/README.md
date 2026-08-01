@@ -54,3 +54,4 @@ scripts/ima/kb_download.sh folder_7352341586014294 "点睛焱究所/1. 尽调报
 - **末行**: TSV 清单最后一行常无换行符，`while read` 会漏读 → 用 `sed '$a\'` 补。
 - **下载**: `get_media_info` 返回的 `data.url_info.url` 已带签名，纯 `curl -sL` 即可，无需附加 headers。签名URL有时效，跨天需重新遍历。
 - **笔记**: `media_type=11`(media_id `note_` 开头)无下载链接；且他人创建的笔记 notes API 报 `210005 not author`，无法导出，只能在 IMA 客户端手动复制。
+- **限流**: `get_media_info` 每日限量 **30 次**（错误码 `220021`「资料获取次数已达上限」）。`get_knowledge_list` 另有独立限额。跨天自动重置。

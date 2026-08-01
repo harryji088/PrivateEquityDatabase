@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 /**
  * kb_walk.cjs — 递归遍历点睛焱究所知识库某文件夹，输出所有"文件类"条目的 JSON。
- * 用法: node kb_walk.cjs <folder_id>
- * 输出: stdout 一个 JSON 数组 [{path,title,media_id,kind}]，kind ∈ {file,note}
+ * 用法: node kb_walk.cjs <folder_id> [--cache] [--force]
+ *
+ *   --cache     结果持久化到 scripts/ima/cache/<folder_id>.json
+ *   --force     忽略缓存，强制从 API 重新拉取（与 --cache 配合）
+ *   (无参数)    输出 stdout 一个 JSON 数组 [{path,title,media_id,kind}]
  *
  * 关键点(踩过的坑):
  *  - 子文件夹的 media_type === 99，其 id 在 `media_id` 字段(不是 folder_id)，递归时用它下钻。
@@ -10,11 +13,22 @@
  *  - 必须 export IMA_SKILL_VERSION 否则 API 返回 -200 强制更新。
  */
 const { execFileSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const SKILL = process.env.IMA_SKILL_DIR || '/Users/harryji/.claude/skills/ima-skill';
 const KB = process.env.IMA_KB_ID || 'fgp_0fLfUt99hoCcbsW1OPPXIrezZEstzWpniCHhNR8=';
-process.env.IMA_SKILL_VERSION = process.env.IMA_SKILL_VERSION || '1.1.7';
+process.env.IMA_SKILL_VERSION = process.env.IMA_SKILL_VERSION || '1.1.8';
+
+// Parse args: folder_id is the one that doesn't start with --
+const args = process.argv.slice(2);
+const USE_CACHE = args.includes('--cache');
+const FORCE = args.includes('--force');
+const root = args.find(a => !a.startsWith('--'));
+if (!root) { console.error('用法: node kb_walk.cjs <folder_id> [--cache] [--force]'); process.exit(1); }
+
+const HERE = __dirname;
+const CACHE_DIR = path.join(HERE, 'cache');
 
 function api(apiPath, body) {
   const out = execFileSync('node', [path.join(SKILL, 'ima_api.cjs'), apiPath, JSON.stringify(body)], {
@@ -37,21 +51,70 @@ function listFolder(folderId) {
   return items;
 }
 
-const isFolder = (it) => it.media_type === 99;          // 子文件夹标志
+const isFolder = (it) => it.media_type === 99;
 const isNote   = (it) => (it.media_id || '').startsWith('note_');
 
-const results = [];
-function walk(folderId, prefix) {
-  for (const it of listFolder(folderId)) {
-    if (isFolder(it)) {
-      walk(it.media_id, prefix + it.title + '/');       // 子文件夹 id 在 media_id
-    } else {
-      results.push({ path: prefix, title: it.title, media_id: it.media_id, kind: isNote(it) ? 'note' : 'file' });
+function doWalk(folderId) {
+  const results = [];
+  function walk(fid, prefix) {
+    for (const it of listFolder(fid)) {
+      if (isFolder(it)) {
+        walk(it.media_id, prefix + it.title + '/');
+      } else {
+        results.push({ path: prefix, title: it.title, media_id: it.media_id, kind: isNote(it) ? 'note' : 'file' });
+      }
     }
   }
+  walk(folderId, '');
+  return results;
 }
 
-const root = process.argv[2];
-if (!root) { console.error('用法: node kb_walk.cjs <folder_id>'); process.exit(1); }
-walk(root, '');
-process.stdout.write(JSON.stringify(results, null, 0));
+// --cache 模式：优先读缓存
+if (USE_CACHE) {
+  const cacheFile = path.join(CACHE_DIR, `${root}.json`);
+  if (!FORCE && fs.existsSync(cacheFile)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+      const ageH = (Date.now() - new Date(cached.cached_at).getTime()) / 3600000;
+      if (ageH < 24) {
+        process.stderr.write(`(cache ${ageH.toFixed(1)}h old, ${cached.file_count} files)\n`);
+        process.stdout.write(JSON.stringify(cached.files, null, 0));
+        process.exit(0);
+      }
+    } catch (e) { /* stale cache, refetch */ }
+  }
+
+  // Fetch from API
+  process.stderr.write(`>> 遍历远端 ${root} ...\n`);
+  const results = doWalk(root);
+  if (results.length === 0) {
+    // API failed → try stale cache as fallback
+    if (!FORCE && fs.existsSync(cacheFile)) {
+      try {
+        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        process.stderr.write(`(API 失败，回退缓存: ${cached.file_count} files)\n`);
+        process.stdout.write(JSON.stringify(cached.files, null, 0));
+        process.exit(0);
+      } catch (e) {}
+    }
+    process.stderr.write('API 失败且无可用缓存\n');
+    process.stdout.write('[]');
+    process.exit(1);
+  }
+
+  // Save to cache
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  const meta = {
+    folder_id: root,
+    file_count: results.length,
+    cached_at: new Date().toISOString().slice(0, 10),
+    files: results,
+  };
+  fs.writeFileSync(cacheFile, JSON.stringify(meta, null, 2), 'utf8');
+  process.stderr.write(`(已缓存 ${results.length} files -> ${cacheFile})\n`);
+  process.stdout.write(JSON.stringify(results, null, 0));
+} else {
+  // 纯遍历模式（向后兼容）
+  const results = doWalk(root);
+  process.stdout.write(JSON.stringify(results, null, 0));
+}

@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# kb_download.cjs 的伴生下载器 — 从知识库某文件夹下载缺失的文件到本地目录。
+# kb_download.sh — 从知识库某文件夹下载缺失的文件到本地目录。
 #
 # 用法:
-#   scripts/ima/kb_download.sh <folder_id> "<目标目录(相对项目根或绝对)>" [数量N]
+#   scripts/ima/kb_download.sh <folder_id> "<目标目录>" [数量N] [--from-cache]
+#
+#   --from-cache  跳过 API walk，直接使用 scripts/ima/cache/<folder_id>.json
+#                 缓存不存在时自动降级为 API walk
 #
 # 行为:
-#   1. 用 kb_walk.cjs 遍历 folder_id 下全部文件(递归子夹)
+#   1. 获取远端文件清单（API walk 或缓存）
 #   2. 与目标目录已有文件按"去空格归一化"比对，得出缺失清单
 #   3. 逐个 get_media_info 取签名URL → curl 下载 → 校验 %PDF 魔数(仅.pdf)
 #   4. note 类型(media_type=11)跳过(API 无下载链接)
@@ -14,13 +17,25 @@
 set -u
 
 SKILL="${IMA_SKILL_DIR:-/Users/harryji/.claude/skills/ima-skill}"
-export IMA_SKILL_VERSION="${IMA_SKILL_VERSION:-1.1.7}"
+export IMA_SKILL_VERSION="${IMA_SKILL_VERSION:-1.1.8}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+CACHE_DIR="$HERE/cache"
 
 FID="${1:?需要 folder_id}"
 DEST_IN="${2:?需要目标目录}"
-N="${3:-100000}"
+
+# Parse optional args
+N="100000"
+FROM_CACHE=false
+for a in "${@:3}"; do
+  case "$a" in
+    --from-cache) FROM_CACHE=true ;;
+    ''|*[!0-9]*) ;;  # not a number
+    *) N="$a" ;;
+  esac
+done
+
 # 相对路径按项目根解析
 case "$DEST_IN" in
   /*) DEST="$DEST_IN" ;;
@@ -31,10 +46,30 @@ mkdir -p "$DEST"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo ">> 遍历远端 $FID ..."
-node "$HERE/kb_walk.cjs" "$FID" > "$TMP/remote.json" || { echo "遍历失败"; exit 1; }
+# Step 1: 获取远端清单
+CACHE_FILE="$CACHE_DIR/${FID}.json"
+if $FROM_CACHE && [ -f "$CACHE_FILE" ]; then
+  echo ">> 使用缓存: $CACHE_FILE"
+  python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(json.dumps(d['files']))" > "$TMP/remote.json" 2>/dev/null
+  if [ ! -s "$TMP/remote.json" ]; then
+    echo "缓存解析失败，降级为 API walk"
+    FROM_CACHE=false
+  fi
+fi
 
-# 计算缺失清单(归一化去空格)，输出 title\tmedia_id\tkind
+if ! $FROM_CACHE; then
+  echo ">> 遍历远端 $FID ..."
+  node "$HERE/kb_walk.cjs" --cache "$FID" > "$TMP/remote.json" || {
+    # API 失败 → 尝试缓存回退
+    if [ -f "$CACHE_FILE" ]; then
+      echo ">> API 失败，回退缓存..."
+      python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(json.dumps(d['files']))" > "$TMP/remote.json" 2>/dev/null
+    fi
+    [ -s "$TMP/remote.json" ] || { echo "遍历失败且无缓存可用"; exit 1; }
+  }
+fi
+
+# Step 2: 计算缺失清单(归一化去空格)，输出 title\tmedia_id\tkind
 node -e '
 const fs=require("fs"),path=require("path");
 const dest=process.argv[1];
@@ -47,6 +82,8 @@ process.stderr.write(`远端 ${remote.length} | 本地 ${local.size} | 缺 ${mis
 process.stdout.write(miss.map(r=>r.title+"\t"+r.media_id+"\t"+r.kind+"\n").join(""));
 ' "$DEST" "$TMP/remote.json" > "$TMP/missing.tsv"
 
+# Step 3: 下载
+SKIPPED_COUNT=0
 i=0; ok=0; fail=0; skip=0
 # sed '$a\' 补末行换行，防止 while read 漏读最后一行
 while IFS=$'\t' read -r title media_id kind; do
