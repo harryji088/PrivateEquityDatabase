@@ -944,6 +944,13 @@ async function checkPw(){{const i=document.getElementById('pwInput');const e=doc
         f.write(html)
     print(f"Synced {docs_path}: {len(html)} chars")
 
+    # Ensure .nojekyll exists so GitHub Pages serves raw HTML (not Jekyll-processed)
+    nojekyll_path = os.path.join(PROJECT_ROOT, "docs", ".nojekyll")
+    if not os.path.exists(nojekyll_path):
+        with open(nojekyll_path, "w") as _f:
+            pass
+        print(f"Created {nojekyll_path}")
+
 
 if __name__ == "__main__":
     main()
