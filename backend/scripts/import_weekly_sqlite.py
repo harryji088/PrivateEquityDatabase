@@ -333,8 +333,10 @@ def import_to_db(conn, all_records, company_set, fund_set):
 def compute_stock_long_excess(conn, cur):
     """Compute excess returns for 量化选股 (stock_long) using 中证1000 benchmark.
 
-    weekly_excess = fund_weekly_return - benchmark_weekly_return
-    ytd_excess = Π(1 + weekly_excess) - 1  (cumulative compounded)
+    Geometric excess（自洽；基准波动时不会像算术差复利那样高估超额）:
+        weekly_excess = (1 + fund_weekly_return) / (1 + benchmark_weekly_return) - 1
+        ytd_excess    = (1 + fund_ytd_return)   / (1 + benchmark_cum_from_1231)  - 1
+    benchmark_cum_from_1231 = NAV(当周) / NAV(20251231) - 1
     """
     import json
     import os

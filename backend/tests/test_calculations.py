@@ -120,7 +120,7 @@ def test_excess_drawdown_never_positive():
 # ─────────────────────── compute_stock_long_excess ─────────────────────────
 
 def test_stock_long_excess_compounding(tmp_path, monkeypatch):
-    """weekly_excess = 基金周收益 - 基准周收益；ytd_excess 为复利累积 Π(1+we)-1。"""
+    """几何超额：weekly_excess=(1+fr)/(1+br)-1；ytd_excess=(1+fund_ytd)/(1+bench_cum)-1。"""
     conn = _make_conn()
     fid = _insert_fund(conn, company="选股公司", strategy="stock_long")
     cur = conn.cursor()
@@ -128,17 +128,23 @@ def test_stock_long_excess_compounding(tmp_path, monkeypatch):
     # 基金近一周收益率：3 周
     fund_weekly = [0.02, 0.01, -0.005]
     weeks = _WEEK_BASE[:3]
-    for (rd, wl), r in zip(weeks, fund_weekly):
+    # 累计 ytd_return = Π(1+weekly) - 1（与 1231 年初基线一致）
+    fund_ytd = []
+    _acc = 1.0
+    for r in fund_weekly:
+        _acc *= (1 + r)
+        fund_ytd.append(_acc - 1)
+    for (rd, wl), r, ytd in zip(weeks, fund_weekly, fund_ytd):
         cur.execute(
-            "INSERT INTO weekly_performances(fund_id, week_label, record_date, weekly_return) "
-            "VALUES(?,?,?,?)", (fid, wl, rd, r))
+            "INSERT INTO weekly_performances(fund_id, week_label, record_date, weekly_return, ytd_return) "
+            "VALUES(?,?,?,?,?)", (fid, wl, rd, r, ytd))
     conn.commit()
 
-    # 临时中证1000 基准：首日=第一周起点(2026-01-05)，逐周收盘 NAV
-    # 隐含基准周收益: +1.0%, +0.5%, -1.0%
+    # 临时中证1000 基准：含 20251231 年初基线（几何累计超额 ytd_excess 依赖它）
+    # 周收盘 NAV 隐含基准周收益: +1.0%, +0.5%, -1.0%
     bench = {
         "中证1000": {
-            "dates": ["20260105", "20260109", "20260116", "20260123"],
+            "dates": ["20251231", "20260109", "20260116", "20260123"],
             "navs": [1.0, 1.01, 1.01 * 1.005, 1.01 * 1.005 * 0.99],
         }
     }
@@ -160,32 +166,36 @@ def test_stock_long_excess_compounding(tmp_path, monkeypatch):
         "SELECT weekly_excess, ytd_excess FROM weekly_performances "
         "WHERE fund_id=? ORDER BY record_date", (fid,)).fetchall()
 
-    bench_weekly = [0.01, 0.005, -0.01]
-    cum = 0.0
-    for (we, ytd_e), br in zip(rows, bench_weekly):
-        fr = fund_weekly[bench_weekly.index(br)]
-        assert we == pytest.approx(fr - br, abs=1e-6)         # 周超额
-        cum = (1 + cum) * (1 + (fr - br)) - 1
-        assert ytd_e == pytest.approx(cum, abs=1e-6)          # 复利累积
+    b = bench["中证1000"]["navs"]  # [1231, 0109, 0116, 0123]
+    # 基准周收益：首周锚定 1231，其后逐周环比
+    bench_weekly = [b[1] / b[0] - 1, b[2] / b[1] - 1, b[3] / b[2] - 1]
+    # 基准自年初累计 = 各周 NAV / 1231 NAV - 1
+    bench_cum = [b[1] / b[0] - 1, b[2] / b[0] - 1, b[3] / b[0] - 1]
+    for (we, ytd_e), fr, ytd_r, br, bc in zip(
+            rows, fund_weekly, fund_ytd, bench_weekly, bench_cum):
+        # 单周几何超额
+        assert we == pytest.approx((1 + fr) / (1 + br) - 1, abs=1e-6)
+        # 累计几何超额 = (1+基金累计) / (1+基准累计) - 1
+        assert ytd_e == pytest.approx((1 + ytd_r) / (1 + bc) - 1, abs=1e-6)
 
 
 def test_stock_long_excess_missing_fund_week_skipped(tmp_path, monkeypatch):
-    """某周基金无数据时应跳过，不污染复利累积链。"""
+    """某周基金无数据时该周被跳过；各周累计超额基于自身 ytd_return 独立计算，不依赖相邻周。"""
     conn = _make_conn()
     fid = _insert_fund(conn, company="选股公司2", strategy="stock_long")
     cur = conn.cursor()
-    # 只插第 1、3 周，跳过第 2 周
+    # 只插第 1、3 周，跳过第 2 周；各自带 ytd_return（几何累计超额的输入）
     cur.execute(
-        "INSERT INTO weekly_performances(fund_id, week_label, record_date, weekly_return) "
-        "VALUES(?,?,?,?)", (fid, "2026-W01", "2026-01-09", 0.02))
+        "INSERT INTO weekly_performances(fund_id, week_label, record_date, weekly_return, ytd_return) "
+        "VALUES(?,?,?,?,?)", (fid, "2026-W01", "2026-01-09", 0.02, 0.02))
     cur.execute(
-        "INSERT INTO weekly_performances(fund_id, week_label, record_date, weekly_return) "
-        "VALUES(?,?,?,?)", (fid, "2026-W03", "2026-01-23", 0.03))
+        "INSERT INTO weekly_performances(fund_id, week_label, record_date, weekly_return, ytd_return) "
+        "VALUES(?,?,?,?,?)", (fid, "2026-W03", "2026-01-23", 0.03, 0.05))
     conn.commit()
 
     (tmp_path / "benchmark_nav.json").write_text(json.dumps({
-        "中证1000": {"dates": ["20260105", "20260109", "20260116", "20260123"],
-                     "navs": [1.0, 1.01, 1.015, 1.01]}
+        "中证1000": {"dates": ["20251231", "20260109", "20260116", "20260123"],
+                     "navs": [1.0, 1.01, 1.015, 1.02]}
     }), encoding="utf-8")
     real_exists = os.path.exists
     monkeypatch.setattr(
@@ -203,5 +213,13 @@ def test_stock_long_excess_missing_fund_week_skipped(tmp_path, monkeypatch):
     assert len(rows) == 2
     assert rows[0][0] == "2026-W01"
     assert rows[1][0] == "2026-W03"
-    # 第 3 周的 ytd_excess 仍基于第 1 周之后继续复利（中间周不影响 cum 链）
-    assert rows[1][2] is not None
+    # 各周累计超额非空，且基于自身 ytd_return 与基准累计独立算出（中间缺失周不影响）
+    b = [1.0, 1.01, 1.015, 1.02]  # 1231, 0109, 0116, 0123
+    # 基准周收益：DB 在场周=[W01,W03]，W03 环比上一在场周 W01
+    bench_weekly = {"2026-W01": b[1] / b[0] - 1, "2026-W03": b[3] / b[1] - 1}
+    bench_cum = {"2026-W01": b[1] / b[0] - 1, "2026-W03": b[3] / b[0] - 1}
+    fund = {"2026-W01": (0.02, 0.02), "2026-W03": (0.03, 0.05)}
+    for wl, we, ytd_e in rows:
+        fr, ytd_r = fund[wl]
+        assert we == pytest.approx((1 + fr) / (1 + bench_weekly[wl]) - 1, abs=1e-6)
+        assert ytd_e == pytest.approx((1 + ytd_r) / (1 + bench_cum[wl]) - 1, abs=1e-6)
