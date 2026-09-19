@@ -73,3 +73,24 @@ backend/alembic/versions/*.pyc
 # Logs
 *.log
 logs/
+
+# FOF99 scraper local data and authenticated browser session
+NAV/FOF99/.browser-profile/
+NAV/FOF99/output/
+NAV/FOF99/state/
+NAV/FOF99/products.csv
+!NAV/FOF99/products.example.csv
+
+# Simuwang scraper local data and authenticated browser session
+NAV/SIMUWANG/.browser-profile/
+NAV/SIMUWANG/output/
+NAV/SIMUWANG/state/
+NAV/SIMUWANG/products.csv
+!NAV/SIMUWANG/products.example.csv
+
+# Howbuy scraper local data and authenticated browser session
+NAV/HOWBUY/.browser-profile/
+NAV/HOWBUY/output/
+NAV/HOWBUY/state/
+NAV/HOWBUY/products.csv
+!NAV/HOWBUY/products.example.csv

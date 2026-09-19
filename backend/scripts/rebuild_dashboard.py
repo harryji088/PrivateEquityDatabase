@@ -718,7 +718,7 @@ function initAll() {{
   function addLine(){{var val=document.getElementById('pickerFund').value;if(!val)return;if(extraLines.indexOf(val)<0)extraLines.push(val);drawFundChart();}}
   function clearLines(){{extraLines=[];drawFundChart();}}
   function drawFundChart() {{
-    var pv=document.getElementById('pickerFund').value, allVals=[pv].concat(extraLines).filter(Boolean), bench=document.getElementById('fundBench').value, series=[];
+    var pv=document.getElementById('pickerFund').value, allVals=[pv].concat(extraLines.filter(function(v){{return v!==pv;}})).filter(Boolean), bench=document.getElementById('fundBench').value, series=[];
     allVals.forEach(function(val,i){{var parts=val.split('|'),name=parts[0],strat=parts.slice(1).join('|');var f=DATA.funds.find(function(f){{return f.company===name&&f.strategy===strat;}});if(!f)return;var arr=IS_EXCESS?f.excesses:f.navs,d=[];arr.forEach(function(n,j){{if(n!==null)d.push([dates[j],n]);}});series.push({{name:name+'('+strat+')',type:'line',data:d,smooth:true,symbol:'circle',symbolSize:5,lineStyle:{{width:3,color:COLORS[i%COLORS.length]}},itemStyle:{{color:COLORS[i%COLORS.length]}}}});}});
     if(bench&&!IS_EXCESS){{var bs=makeBenchSeries(bench);if(bs)series.push(bs);}}
     var fYaf2=IS_EXCESS?function(v){{return (v*100).toFixed(1)+'%';}}:function(v){{return v.toFixed(3);}};
@@ -863,7 +863,7 @@ function initAll() {{
 
   // Wire events (all through window.xxx to always call latest functions)
   document.getElementById('filterStrategy').addEventListener('change', function(){{ window.updateFundPicker(); }});
-  document.getElementById('pickerFund').addEventListener('change', function(){{ extraLines=[]; window.drawFundChart(); }});
+  document.getElementById('pickerFund').addEventListener('change', function(){{ window.drawFundChart(); }});
   document.getElementById('fundBench').addEventListener('change', function(){{ window.drawFundChart(); }});
   document.getElementById('filterRankStrategy').addEventListener('change', function(){{ syncSizeDropdown(document.getElementById('filterRankSize'), this.value, 'all'); window.updateRankTable(); }});
   document.getElementById('filterRankSize').addEventListener('change', function(){{ window.updateRankTable(); }});

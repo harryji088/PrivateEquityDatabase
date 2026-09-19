@@ -102,6 +102,19 @@ benchmark_index_data: id, index_id → benchmark_index, trade_date, close_price
    - **第一周超额锚点**: 量化选股第一周(0109)的基准收益 = `NAV(0109)/NAV(20251231) − 1`(锚定年初,不是 /上一周),因为第一周的 `weekly_return` 本身就是从 12-31 起算的 ytd 值;仅 `compute_stock_long_excess` 自算超额受此影响,指增超额取自 Excel、市场中性基准=0,均不受影响
    - **几何超额**: 量化选股超额用几何口径——`ytd_excess = (1+ytd_return)/(1+基准累计) − 1`(基准累计 = `NAV(当周)/NAV(20251231) − 1`),直接基于累计值、自洽;`weekly_excess` 为单周几何 `(1+周收益)/(1+基准周收益) − 1`。不用算术差复利(基准波动时会高估超额,且依赖 `∏(1+weekly_return)=1+ytd_return` 的不成立假设)
 
+### 点睛焱究所 IMA 知识库更新("更新点睛")
+
+周度 Excel 的正本来自 IMA"点睛焱究所"知识库(`fgp_0fLfUt99hoCcbsW1OPPXIrezZEstzWpniCHhNR8=`)。"更新点睛"= 检查该知识库有无新内容并下载到本地 `点睛焱究所/`。工具在 `scripts/ima/`(`kb_walk.cjs` 遍历 / `kb_download.sh` 下载 / `kb_sync.sh` 比对),凭证在 `~/.config/ima/{client_id,api_key}`,9 个模块的 folder_id 表与已知坑见 `scripts/ima/README.md`。
+
+**检查策略(差异化)**:
+- **模块4"周度业绩排名"**(root `folder_7352341879618812`,周度子夹 `folder_7354341090423503`):只列**顶层**看有无新周文件夹(如 `0803-0807`)出现,**不递归遍历** `2025/` 等历史子夹;发现新周后再下钻该周文件夹取 4 份策略 Excel,分别落到 `点睛焱究所/4.../周度业绩/2026/{量化股票,主观多头,CTA,宏观}/`。
+- **其余 8 模块**:常规全量递归比对(扁平,安全)。
+- 原因:全量递归模块4历史归档树极易耗尽 `get_knowledge_list` 日限额 `220021`(跨天才重置);浅层 1-2 次 API 即可发现新周。"只看顶层"**仅限模块4**。
+
+下载用 `get_media_info` 取签名 URL → `curl -sL`(xlsx 校验 `PK`、pdf 校验 `%PDF`)。`media_type=11` 笔记无下载链接;遇 `220030`(文件级失败)是 IMA 端问题、需在 IMA 客户端处理,非配额耗尽。
+
+**收尾**: 每次更新结束后同步更新 `点睛.md`(下载进度清单)——更新各模块远端/本地/缺失数、整体规模、模块4 各策略数与新周、下载历史表加一行、未下载项;本地数用 `os.walk` 实测(`点睛焱究所/`),远端数用本次检查结果。
+
 ### Python 3.9 兼容性
 
 SQLite 导入脚本面向 Python 3.9。必须使用:

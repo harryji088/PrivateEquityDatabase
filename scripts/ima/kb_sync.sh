@@ -18,7 +18,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 CACHE_DIR="$HERE/cache"
 mkdir -p "$CACHE_DIR"
 
-export IMA_SKILL_VERSION="${IMA_SKILL_VERSION:-1.1.8}"
+export IMA_SKILL_VERSION="${IMA_SKILL_VERSION:-1.1.10}"
 
 # 模块定义: folder_id|label|local_dir
 MODULES=(

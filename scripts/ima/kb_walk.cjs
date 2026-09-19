@@ -18,7 +18,7 @@ const path = require('path');
 
 const SKILL = process.env.IMA_SKILL_DIR || '/Users/harryji/.claude/skills/ima-skill';
 const KB = process.env.IMA_KB_ID || 'fgp_0fLfUt99hoCcbsW1OPPXIrezZEstzWpniCHhNR8=';
-process.env.IMA_SKILL_VERSION = process.env.IMA_SKILL_VERSION || '1.1.8';
+process.env.IMA_SKILL_VERSION = process.env.IMA_SKILL_VERSION || '1.1.10';
 
 // Parse args: folder_id is the one that doesn't start with --
 const args = process.argv.slice(2);
@@ -37,16 +37,34 @@ function api(apiPath, body) {
   return JSON.parse(out);
 }
 
+// 同步 sleep（毫秒）：用于请求间隔防频率超限、以及 200001 限流退避重试
+function sleepMs(ms) {
+  execFileSync('sleep', [String(ms / 1000)]);
+}
+
 function listFolder(folderId) {
   let items = [], cursor = '';
   for (let guard = 0; guard < 30; guard++) {
-    const r = api('openapi/wiki/v1/get_knowledge_list', {
-      knowledge_base_id: KB, folder_id: folderId, cursor, limit: 50,
-    });
-    if (r.code !== 0) { console.error('ERR', folderId, r.code, r.msg); break; }
+    let r;
+    // 200001 频率限流 → 退避重试（5/15/25/35s），不轻易放弃子文件夹
+    for (let attempt = 0; attempt < 4; attempt++) {
+      r = api('openapi/wiki/v1/get_knowledge_list', {
+        knowledge_base_id: KB, folder_id: folderId, cursor, limit: 50,
+      });
+      if (r.code === 0) break;
+      if (r.code === 200001) {
+        const wait = 5 + attempt * 10;
+        process.stderr.write(`(频率限流 ${folderId}，等 ${wait}s 重试 ${attempt + 1}/4)\n`);
+        sleepMs(wait * 1000);
+        continue;
+      }
+      break; // 其他错误不重试
+    }
+    if (!r || r.code !== 0) { console.error('ERR', folderId, r && r.code, r && r.msg); break; }
     items.push(...(r.data.knowledge_list || []));
     if (r.data.is_end || !r.data.next_cursor) break;
     cursor = r.data.next_cursor;
+    sleepMs(300); // 请求间隔 0.3s，避免递归遍历时密集触发频率限制
   }
   return items;
 }
