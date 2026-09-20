@@ -6,14 +6,13 @@ Usage:
     python scripts/import_weekly_sqlite.py
 """
 
+import csv
 import os
 import re
-import csv
-import sys
 import sqlite3
+import sys
 from datetime import date, datetime
 from pathlib import Path
-from collections import defaultdict
 
 import openpyxl
 
@@ -132,16 +131,24 @@ def parse_all_files():
             col_map = {}
             for i, h in enumerate(headers):
                 h = h.strip()
-                if '序号' in h:           col_map['rank'] = i
-                elif '策略类型' in h:      col_map['strategy'] = i
-                elif '基金管理人' in h:    col_map['company'] = i
-                elif '管理规模' in h:      col_map['size'] = i
-                elif '净值日期' in h:      col_map['date'] = i
-                elif '近一周收益率' in h:   col_map['weekly_return'] = i
-                elif '近一周超额' in h:    col_map['weekly_excess'] = i
+                if '序号' in h:
+                    col_map['rank'] = i
+                elif '策略类型' in h:
+                    col_map['strategy'] = i
+                elif '基金管理人' in h:
+                    col_map['company'] = i
+                elif '管理规模' in h:
+                    col_map['size'] = i
+                elif '净值日期' in h:
+                    col_map['date'] = i
+                elif '近一周收益率' in h:
+                    col_map['weekly_return'] = i
+                elif '近一周超额' in h:
+                    col_map['weekly_excess'] = i
                 elif '今年以来收益率' in h and '年化' not in h:
                     col_map['ytd_return'] = i
-                elif '今年以来超额' in h and '动态回撤' not in h:   col_map['ytd_excess'] = i
+                elif '今年以来超额' in h and '动态回撤' not in h:
+                    col_map['ytd_excess'] = i
                 elif '今年以来动态回撤' in h and '超额' not in h:
                     col_map['ytd_drawdown'] = i
                 elif '成立以来年化收益率' in h:
@@ -168,9 +175,12 @@ def parse_all_files():
                 company_name = COMPANY_NAME_NORMALIZE.get(company_name, company_name)
 
                 def sf(val):
-                    if val is None: return None
-                    try: return float(val)
-                    except (TypeError, ValueError): return None
+                    if val is None:
+                        return None
+                    try:
+                        return float(val)
+                    except (TypeError, ValueError):
+                        return None
 
                 date_val = row[col_map.get('date')]
                 if isinstance(date_val, datetime):
@@ -352,7 +362,7 @@ def compute_stock_long_excess(conn, cur):
         print("  [SKIP] benchmark_nav.json not found, cannot compute stock_long excess")
         return
 
-    with open(benchmark_path, "r") as f:
+    with open(benchmark_path) as f:
         bench_data = json.load(f)
 
     zz1000 = bench_data.get("中证1000")
@@ -717,7 +727,7 @@ def main():
         if fresh_weeks:
             print(f"  New: {', '.join(sorted(fresh_weeks))}")
         else:
-            print(f"  ✅ Database is up to date — no new weeks found")
+            print("  ✅ Database is up to date — no new weeks found")
     elif new_weeks:
         print(f"  Weeks to import: {len(new_weeks)}")
 
@@ -732,7 +742,7 @@ def main():
     print(f"\n{'=' * 60}")
     print(f"  Database: {DB_PATH}")
     print(f"  CSV Export: {CSV_OUTPUT}")
-    print(f"  ✅ All done!")
+    print("  ✅ All done!")
     print(f"{'=' * 60}")
 
 

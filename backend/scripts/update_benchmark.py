@@ -44,7 +44,7 @@ def load_existing() -> dict:
     """Load existing benchmark data."""
     if not BENCHMARK_PATH.exists():
         return {}
-    with open(BENCHMARK_PATH, "r") as f:
+    with open(BENCHMARK_PATH) as f:
         return json.load(f)
 
 
@@ -99,7 +99,7 @@ def main():
                     bridge_date = d
                     break
             if bridge_date not in new_map:
-                print(f"  SKIP: no bridge date found")
+                print("  SKIP: no bridge date found")
                 continue
 
         bridge_close = new_map[bridge_date]

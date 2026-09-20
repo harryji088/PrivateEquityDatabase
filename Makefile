@@ -1,4 +1,4 @@
-.PHONY: import-weekly update-benchmark rebuild-dashboard update-data test
+.PHONY: import-weekly update-benchmark update-style rebuild-dashboard update-data test analytics weekly-report weekly-report-validate update-all
 
 # ── Data pipeline (SQLite + self-contained dashboard) ──
 
@@ -7,6 +7,9 @@ import-weekly:
 
 update-benchmark:
 	cd backend && python3 scripts/update_benchmark.py
+
+update-style:
+	cd backend && python3 scripts/update_style_indices.py
 
 rebuild-dashboard:
 	cd backend && python3 scripts/rebuild_dashboard.py
@@ -21,3 +24,19 @@ update-data: update-benchmark import-weekly rebuild-dashboard
 
 test:
 	cd backend && python3 -m pytest
+
+# ── Offline weekly report (read-only SQLite + local benchmark JSON) ──
+
+analytics: weekly-report-validate
+
+weekly-report:
+	cd backend && python3 scripts/generate_weekly_report.py --print-summary
+
+weekly-report-validate:
+	cd backend && python3 scripts/generate_weekly_report.py --validate-only --print-summary
+
+# Kept separate from update-data so the established dashboard pipeline remains unchanged.
+update-all:
+	$(MAKE) update-data
+	$(MAKE) update-style
+	$(MAKE) weekly-report

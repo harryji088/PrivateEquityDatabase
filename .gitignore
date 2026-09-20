@@ -35,6 +35,7 @@ env/
 # Generated dashboard HTML (only docs/index.html is tracked for GitHub Pages)
 /dashboard.html
 /index.html
+/style_index_nav.json
 
 # OS
 .DS_Store

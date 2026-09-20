@@ -1,0 +1,37 @@
+version: 1
+
+focus_managers:
+  - name: 衍复投资
+    aliases: [衍复]
+    strategies: []
+    priority: high
+    enabled: true
+    note: 首批重点跟踪
+
+  - name: 上海孝庸私募
+    aliases: [孝庸]
+    strategies: []
+    priority: high
+    enabled: true
+    note: 首批重点跟踪
+
+  - name: 平方和投资
+    aliases: [平方和]
+    strategies: []
+    priority: high
+    enabled: true
+    note: 首批重点跟踪
+
+  - name: 顽岩资产
+    aliases: [顽岩]
+    strategies: []
+    priority: high
+    enabled: true
+    note: 首批重点跟踪
+
+  - name: 华年私募
+    aliases: [华年]
+    strategies: []
+    priority: high
+    enabled: true
+    note: 首批重点跟踪

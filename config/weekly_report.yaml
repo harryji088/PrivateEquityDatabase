@@ -1,0 +1,196 @@
+version: 1
+
+report:
+  output_dir: reports/weekly
+  facts_dir: data/derived/weekly
+  recent_windows: [1, 4, 12]
+  min_sample_size: 5
+  timezone: Asia/Shanghai
+
+benchmarks:
+  CSI300:
+    label: 沪深300
+    source_key: 沪深300
+  CSI500:
+    label: 中证500
+    source_key: 中证500
+  CSI1000:
+    label: 中证1000
+    source_key: 中证1000
+  CSI2000:
+    label: 中证2000
+    source_key: 中证2000
+  A500:
+    label: A500
+    source_key: A500
+
+style:
+  data_path: style_index_nav.json
+  heatmap_weeks: 12
+  max_staleness_days: 4
+  neutral_spread_threshold: 0.0005
+  indices:
+    CSI_ALL:
+      label: 中证全指
+      source_key: 中证全指
+      wind_code: 000985.CSI
+      csindex_code: "000985"
+    CSI300_GROWTH:
+      label: 沪深300成长
+      source_key: 沪深300成长
+      wind_code: 000918.CSI
+      csindex_code: "000918"
+    CSI300_VALUE:
+      label: 沪深300价值
+      source_key: 沪深300价值
+      wind_code: 000919.CSI
+      csindex_code: "000919"
+    CSI500_GROWTH:
+      label: 中证500成长
+      source_key: 中证500成长
+      wind_code: h30351.CSI
+      csindex_code: H30351
+    CSI500_VALUE:
+      label: 中证500价值
+      source_key: 中证500价值
+      wind_code: h30352.CSI
+      csindex_code: H30352
+    CSI1000_GROWTH:
+      label: 中证1000成长
+      source_key: 中证1000成长
+      wind_code: 932393.CSI
+      csindex_code: "932393"
+    CSI1000_VALUE:
+      label: 中证1000价值
+      source_key: 中证1000价值
+      wind_code: 932392.CSI
+      csindex_code: "932392"
+    CSI300_MOMENTUM:
+      label: 沪深300动量
+      source_key: 沪深300动量
+      wind_code: H30260.CSI
+      query_alias: 300动量
+      csindex_code: H30260
+    CSI300_SNLV:
+      label: 沪深300行业中性低波动
+      source_key: 沪深300行业中性低波动
+      wind_code: 930846.CSI
+      csindex_code: "930846"
+    CSI500_SNLV:
+      label: 中证500行业中性低波动
+      source_key: 中证500行业中性低波动
+      wind_code: 930782.CSI
+      csindex_code: "930782"
+    CSI1000_SNLV:
+      label: 中证1000行业中性低波动
+      source_key: 中证1000行业中性低波动
+      wind_code: 930848.CSI
+      csindex_code: "930848"
+    CSI_DIVIDEND:
+      label: 中证红利
+      source_key: 中证红利
+      wind_code: 000922.CSI
+      csindex_code: "000922"
+  proxies:
+    - key: size_300_1000
+      label: 沪深300 - 中证1000
+      category: 大小盘
+      long_key: CSI300
+      short_key: CSI1000
+      positive_label: 大盘相对占优
+      negative_label: 小盘相对占优
+    - key: size_500_2000
+      label: 中证500 - 中证2000
+      category: 大小盘
+      long_key: CSI500
+      short_key: CSI2000
+      positive_label: 中盘相对微盘占优
+      negative_label: 微盘相对中盘占优
+    - key: growth_value_300
+      label: 沪深300成长 - 价值
+      category: 成长价值
+      long_key: CSI300_GROWTH
+      short_key: CSI300_VALUE
+      positive_label: 成长相对占优
+      negative_label: 价值相对占优
+    - key: growth_value_500
+      label: 中证500成长 - 价值
+      category: 成长价值
+      long_key: CSI500_GROWTH
+      short_key: CSI500_VALUE
+      positive_label: 成长相对占优
+      negative_label: 价值相对占优
+    - key: growth_value_1000
+      label: 中证1000成长 - 价值
+      category: 成长价值
+      long_key: CSI1000_GROWTH
+      short_key: CSI1000_VALUE
+      positive_label: 成长相对占优
+      negative_label: 价值相对占优
+    - key: momentum_300
+      label: 沪深300动量 - 沪深300
+      category: 动量
+      long_key: CSI300_MOMENTUM
+      short_key: CSI300
+      positive_label: 动量风格占优
+      negative_label: 动量风格不占优
+    - key: low_vol_300
+      label: 沪深300行业中性低波动 - 沪深300
+      category: 低波
+      long_key: CSI300_SNLV
+      short_key: CSI300
+      positive_label: 低波风格占优
+      negative_label: 低波风格不占优
+    - key: low_vol_500
+      label: 中证500行业中性低波动 - 中证500
+      category: 低波
+      long_key: CSI500_SNLV
+      short_key: CSI500
+      positive_label: 低波风格占优
+      negative_label: 低波风格不占优
+    - key: low_vol_1000
+      label: 中证1000行业中性低波动 - 中证1000
+      category: 低波
+      long_key: CSI1000_SNLV
+      short_key: CSI1000
+      positive_label: 低波风格占优
+      negative_label: 低波风格不占优
+    - key: dividend_all
+      label: 中证红利 - 中证全指
+      category: 红利
+      long_key: CSI_DIVIDEND
+      short_key: CSI_ALL
+      positive_label: 红利风格占优
+      negative_label: 红利风格不占优
+
+strategies:
+  index_300:
+    label: 300指增
+    benchmark_key: CSI300
+  index_500:
+    label: 500指增
+    benchmark_key: CSI500
+  index_1000:
+    label: 1000指增
+    benchmark_key: CSI1000
+  index_2000:
+    label: 2000指增
+    benchmark_key: CSI2000
+  index_a500:
+    label: A500指增
+    benchmark_key: A500
+
+anomalies:
+  negative_weekly_percentile: 0.10
+  positive_weekly_percentile: 0.90
+  negative_rank_change_percentile_points: 25
+  consecutive_negative_weeks: 3
+  consecutive_positive_weeks: 3
+  weekly_excess_sigma: 2.0
+  min_history_weeks_for_drawdown: 8
+  drawdown_recovery_min: 0.01
+
+display:
+  percent_digits: 2
+  max_focus_managers: 20
+  max_alerts: 10

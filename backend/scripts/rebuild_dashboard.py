@@ -1,13 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Clean rebuild of dashboard.html with absolute + excess return tabs.
 """
 
-import sqlite3
 import json
-import math
-
 import os
+import sqlite3
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_PATH = os.path.join(PROJECT_ROOT, "cc_data.sqlite3")
 BENCHMARK_PATH = os.path.join(PROJECT_ROOT, "benchmark_nav.json")
@@ -218,7 +216,7 @@ def build_data_set(cur, cfg):
         "strategySizes": strategy_sizes,
     }
     if cfg["include_bench"]:
-        with open(BENCHMARK_PATH, "r") as bf:
+        with open(BENCHMARK_PATH) as bf:
             result["benchData"] = json.load(bf)
         result["strategyBench"] = {
             "量化选股": "中证1000", "市场中性": "沪深300", "500指增": "中证500",
