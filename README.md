@@ -142,7 +142,7 @@ make weekly-report-validate  # 只读校验，不生成文件
 make weekly-report           # 生成 facts JSON 和 Markdown 周报
 ```
 
-周报只读取项目根目录的 `cc_data.sqlite3`、`benchmark_nav.json`、`config/` 下的 YAML，以及 `style.data_path` 指向的本地风格缓存；不会更新数据库、调用网络或改变 Dashboard。V1 范围为 300/500/1000/2000/A500 指增，数据实体为“管理人 × 策略”，周超额直接复用数据库的正式 `weekly_excess` 字段。V2A 新增指数风格收益差、类别风格结论、连续同向周数、12 周切换次数和方向热力图；类别内全部配置代理均有数据且同向才给出占优/不占优，短线反转不等同趋势确认。默认将绝对收益差不超过 0.05% 视为中性，并拒绝使用滞后超过 4 个自然日或窗口内没有新增观测的指数数据。不包含全A宽度、成交、个股因子或真实归因。
+周报只读取项目根目录的 `cc_data.sqlite3`、`benchmark_nav.json`、`config/` 下的 YAML，以及 `style.data_path` 指向的本地风格缓存；不会更新数据库、调用网络或改变 Dashboard。V1 范围为 300/500/1000/2000/A500 指增，数据实体为“管理人 × 策略”，周超额直接复用数据库的正式 `weekly_excess` 字段。V2A 新增指数风格收益差、类别风格结论、连续同向周数、12 周切换次数和方向热力图；类别内全部配置代理均有数据且同向才给出占优/不占优，短线反转不等同趋势确认。指增 Alpha 热力图按最近 12 个真实报告日逐周重新计算管理人横截面的周超额中位数、正超额比例、四分位数、分化度和样本数，并输出连续性与规则化趋势。默认将绝对收益差/超额不超过 0.05% 视为中性。不包含全A宽度、成交、个股因子或真实归因。
 
 生成物为 `data/derived/weekly/{日期}/report_facts.json`、校验结果和 `reports/weekly/{日期}.md`。为保护历史文件，若同一日期已存在，默认失败；确认需要重生成时直接执行：
 
@@ -153,13 +153,15 @@ cd backend && python3 scripts/generate_weekly_report.py --overwrite
 重点管理人由 `config/focus_managers.yaml` 管理；初始名单为衍复、孝庸、平方和、顽岩和华年。配置中的短名只作别名，报告始终使用数据库标准名称。
 V1 报告时区固定为 `Asia/Shanghai`，`recent_windows` 必须包含 4 周和 12 周，与固定 Markdown 栏目保持一致。
 
-周报事实层与展示层分离：所有指标、日期、阈值和风格结论先写入 `report_facts.json`，Markdown 只负责渲染。风格收益差采用“多头腿窗口累计收益 − 对照腿窗口累计收益”，不是单周差值累加，也不是产品几何超额。
+周报事实层与展示层分离：所有指标、日期、阈值和风格结论先写入 `report_facts.json`，Markdown 只负责渲染。风格收益差采用“多头腿窗口累计收益 − 对照腿窗口累计收益”，不是单周差值累加，也不是产品几何超额。原有 `weeks_4/weeks_12 cumulative_excess` 是先对单个管理人的周超额做滚动累计、再进行横截面统计；`alpha_heatmap` 则对每个实际报告周的管理人周超额横截面独立计算，两者不得混用。
+
+管理规模分析只读取当期 `weekly_performances.size_category`，不使用公司表的静态规模代替。facts 保留六档标准规模统计；正文按配置聚合为百亿以上、20–100亿、20亿以下。单组有效周超额少于 5 个时显示样本不足；只有至少两个合格组且超额中位数差达到 0.20 个百分点时，才输出当周规模差异结论。未知规模不参与比较，但计入数据质量。
 
 ### 6. 一键更新与质量检查
 
 ```bash
 make update-all                         # 看板数据 → V2A 风格缓存 → 周报
-make test                               # 当前 32 项后端测试
+make test                               # 后端全量测试
 cd backend && python3 -m ruff check .  # Ruff 静态检查
 ```
 

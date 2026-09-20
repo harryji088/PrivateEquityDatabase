@@ -15,6 +15,7 @@ PROJECT_ROOT = BACKEND_DIR.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from analytics.alpha_heatmap import analyze_alpha_heatmap
 from analytics.anomaly_detection import detect_anomalies
 from analytics.benchmark_analysis import analyze_benchmarks
 from analytics.data_access import (
@@ -28,6 +29,7 @@ from analytics.facts_builder import build_facts, write_json_atomic, write_text_a
 from analytics.manager_analysis import build_focus_manager_cards
 from analytics.report_renderer import render_report
 from analytics.schemas import AnalyticsError, load_focus_config, load_report_config
+from analytics.size_analysis import analyze_size_groups
 from analytics.style_analysis import analyze_style_proxies
 from analytics.universe_analysis import analyze_universe
 
@@ -89,6 +91,15 @@ def main() -> int:
             observations, report_dates, as_of_date, previous_as_of_date,
             report_config["strategies"], report_config["report"]["min_sample_size"],
             report_config["report"]["recent_windows"])
+        alpha_config = report_config["alpha_heatmap"]
+        alpha_heatmap = analyze_alpha_heatmap(
+            observations, report_dates, report_config["strategies"],
+            report_config["report"]["min_sample_size"], alpha_config["weeks"],
+            alpha_config["neutral_excess_threshold"])
+        alpha_heatmap["enabled"] = alpha_config["enabled"]
+        size_analysis = analyze_size_groups(
+            observations, as_of_date, report_config["strategies"],
+            report_config["size_groups"])
         benchmark_returns = {
             strategy_key: next(
                 (item["weekly_return"] for item in benchmark_analysis["benchmarks"]
@@ -101,7 +112,8 @@ def main() -> int:
         alerts = detect_anomalies(universe, observations, as_of_date, report_config, focus_config)
         facts = build_facts(
             args.db, args.benchmark, style_path, as_of_date, previous_as_of_date, report_config,
-            benchmark_analysis, style_analysis, universe, focus_cards, focus_warnings, alerts)
+            benchmark_analysis, style_analysis, universe, alpha_heatmap, size_analysis,
+            focus_cards, focus_warnings, alerts)
         if args.validate_only:
             _print_summary(facts, validate_only=True)
             return 0

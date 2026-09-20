@@ -17,7 +17,8 @@ def _create_fixture_database(path):
         CREATE TABLE weekly_performances (
             id INTEGER PRIMARY KEY, fund_id INTEGER NOT NULL, week_label TEXT NOT NULL,
             record_date TEXT NOT NULL, weekly_return REAL, weekly_excess REAL,
-            ytd_return REAL, ytd_excess REAL, ytd_excess_drawdown REAL
+            ytd_return REAL, ytd_excess REAL, ytd_excess_drawdown REAL,
+            size_category TEXT
         );
     """)
     dates = ["2026-01-02", "2026-01-09", "2026-01-16", "2026-01-23", "2026-01-30"]
@@ -27,14 +28,14 @@ def _create_fixture_database(path):
         for index, day in enumerate(dates):
             weekly_excess = (manager_id - 3) * 0.002 + (0.001 if index == len(dates) - 1 else 0)
             conn.execute(
-                "INSERT INTO weekly_performances VALUES(?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO weekly_performances VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (manager_id * 100 + index, manager_id, f"W{index}", day,
                  weekly_excess + 0.01, weekly_excess, weekly_excess + 0.01,
-                 weekly_excess * (index + 1), min(0.0, weekly_excess)),
+                 weekly_excess * (index + 1), min(0.0, weekly_excess), "0-5亿"),
             )
     conn.execute("INSERT INTO funds VALUES(100, 1, '甲-A500', 'index_a500')")
     conn.execute(
-        "INSERT INTO weekly_performances VALUES(9999,100,'W5','2026-02-06',0.01,0.01,0.01,0.01,0.0)"
+        "INSERT INTO weekly_performances VALUES(9999,100,'W5','2026-02-06',0.01,0.01,0.01,0.01,0.0,'100亿以上')"
     )
     conn.commit()
     conn.close()
@@ -98,10 +99,19 @@ def test_cli_validates_then_generates_atomic_artifacts_without_network(tmp_path)
     assert facts.is_file()
     fact_payload = json.loads(facts.read_text(encoding="utf-8"))
     assert fact_payload["methodology"]["entity_grain"] == "manager_strategy"
+    assert fact_payload["schema_version"] == "1.2"
+    assert fact_payload["methodology"]["alpha_heatmap_grain"] == "strategy_report_week_cross_section"
+    assert fact_payload["alpha_heatmap"]["weeks"][-1] == "2026-01-30"
+    assert fact_payload["alpha_heatmap"]["strategies"][1]["history"][-1]["status"] == "positive"
+    assert fact_payload["size_analysis"]["as_of_date"] == "2026-01-30"
+    assert fact_payload["size_analysis"]["strategies"][1]["groups"][2]["sample_size"] == 5
     assert fact_payload["market"]["style"]["summary"]["available_proxy_count"] == 10
     assert [item["strategy_key"] for item in fact_payload["focus_managers"]] == ["index_500"]
-    assert "## 8. 数据质量与口径" in (output_dir / "2026-01-30.md").read_text(encoding="utf-8")
+    assert "## 9. 数据质量与口径" in (output_dir / "2026-01-30.md").read_text(encoding="utf-8")
     assert "### V2A 风格环境" in (output_dir / "2026-01-30.md").read_text(encoding="utf-8")
+    assert "### 近12周 Alpha 热力图" in (output_dir / "2026-01-30.md").read_text(encoding="utf-8")
+    assert "### 近12周正超额管理人比例" in (output_dir / "2026-01-30.md").read_text(encoding="utf-8")
+    assert "## 6. 管理规模分组" in (output_dir / "2026-01-30.md").read_text(encoding="utf-8")
 
     repeat = _run(arguments)
     assert repeat.returncode == 2

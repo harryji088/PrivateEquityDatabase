@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from analytics.schemas import AnalyticsError, WeeklyObservation
+from analytics.size_analysis import normalize_size_category
 
 REQUIRED_COLUMNS = {
     "fund_companies": {"id", "name"},
@@ -18,6 +19,7 @@ REQUIRED_COLUMNS = {
     "weekly_performances": {
         "id", "fund_id", "record_date", "week_label", "weekly_return",
         "weekly_excess", "ytd_return", "ytd_excess", "ytd_excess_drawdown",
+        "size_category",
     },
 }
 
@@ -68,7 +70,8 @@ def load_observations(
         SELECT wp.id AS source_row_id, wp.record_date, wp.week_label,
                fc.id AS manager_id, fc.name AS manager_name,
                f.strategy_type, wp.weekly_return, wp.weekly_excess,
-               wp.ytd_return, wp.ytd_excess, wp.ytd_excess_drawdown
+               wp.ytd_return, wp.ytd_excess, wp.ytd_excess_drawdown,
+               wp.size_category
         FROM weekly_performances wp
         JOIN funds f ON f.id = wp.fund_id
         JOIN fund_companies fc ON fc.id = f.company_id
@@ -99,6 +102,7 @@ def load_observations(
             ytd_excess_drawdown=_as_float(
                 row["ytd_excess_drawdown"], "ytd_excess_drawdown"),
             source_row_id=str(row["source_row_id"]),
+            size_category=normalize_size_category(row["size_category"]),
         ))
     if not observations:
         raise AnalyticsError("No observations found for configured strategies")

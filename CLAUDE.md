@@ -35,7 +35,7 @@ cd backend && python3 scripts/update_benchmark.py
 cd backend && python3 scripts/import_weekly_sqlite.py
 cd backend && python3 scripts/rebuild_dashboard.py
 
-# 后端单测（当前 32 项，含 V2A 边界与更新原子性）
+# 后端单测（含 V2A、Alpha 热力图边界与更新原子性）
 make test                 # cd backend && python3 -m pytest
 
 # Lint 检查
@@ -125,6 +125,10 @@ benchmark_index_data: id, index_id → benchmark_index, trade_date, close_price
 - 本周首期从上一年 12 月 31 日锚定；取值只允许向报告日之前回看，严禁使用未来数据。
 - `style.max_staleness_days=4`：任一端点滞后超过 4 个自然日即数据不完整；正长度窗口若没有新增指数观测，也必须判为不完整，不能输出 0%“持平”。
 - `style.neutral_spread_threshold=0.0005`：绝对收益差不超过 0.05% 视为中性，不触发占优、反转或连续方向。
+- `alpha_heatmap` 按最近 12 个真实 `record_date` 逐周重算管理人横截面；主指标为 `median_weekly_excess`，辅助指标为 `positive_excess_ratio`，缺失值不按 0，样本门槛复用 `report.min_sample_size`。
+- 原有 `weeks_4/weeks_12 cumulative_excess` 是单管理人滚动累计后再做横截面统计；`alpha_heatmap` 是每周横截面独立统计。两种粒度不得混用，renderer 只能读取预计算 facts。
+- 管理规模分析必须读取当期 `weekly_performances.size_category`，统一 `-`/`~` 后保留六档原始统计；正文分组由 `size_groups` 配置决定。未知规模只计入数据质量，不进入大中小组比较。
+- 规模效应只描述当周横截面：每组有效周超额样本至少 5 个，且合格组中位数极差至少 0.20 个百分点，才可输出 `meaningful`；不得推断长期或因果关系。
 - 类别结论只有在该维度**全部配置代理均可用且同向**时才能输出占优/不占优；部分缺失必须显示覆盖数；“短线反转”只表示本周和近 4 周方向相反，不代表趋势确认。
 - `style_index_nav.json` 的默认路径来自 `config/weekly_report.yaml` 的 `style.data_path`。加载时必须校验 label、Wind 代码、CSIndex 代码、日期有序且唯一。
 - `update_style_indices.py` 默认任一指数失败都不覆盖正式缓存；所有指数更新、完整性、身份与新鲜度校验通过后才原子替换。`--allow-partial` 只允许使用仍然完整、身份正确且新鲜的旧缓存作为失败项回退。

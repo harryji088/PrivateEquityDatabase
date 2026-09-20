@@ -60,21 +60,38 @@ def render_report(facts: dict[str, Any], percent_digits: int, max_focus: int, ma
         ))
     lines.extend(["", "## 4. 近期趋势", ""])
     lines.extend(_trend_table(facts["strategy_trend"], percent_digits))
+    if facts["alpha_heatmap"]["enabled"]:
+        lines.extend(["", "### 近12周 Alpha 热力图", ""])
+        lines.extend(_alpha_median_heatmap(facts["alpha_heatmap"], percent_digits))
+        lines.extend(["", "### 近12周正超额管理人比例", ""])
+        lines.extend(_alpha_positive_ratio_heatmap(facts["alpha_heatmap"], percent_digits))
     lines.extend(["", "## 5. 管理人变化", "", "### 本周表现靠前", ""])
     lines.extend(_ranked_table(_all_ranked(facts), percent_digits, reverse=True))
     lines.extend(["", "### 本周表现靠后", ""])
     lines.extend(_ranked_table(_all_ranked(facts), percent_digits, reverse=False))
-    lines.extend(["", "## 6. 重点管理人 Watchlist", ""])
+    if facts["size_analysis"]["enabled"]:
+        lines.extend(["", "## 6. 管理规模分组", ""])
+        lines.extend(_size_group_summary_table(facts["size_analysis"], percent_digits))
+        lines.extend(["", "### 管理规模分组明细", ""])
+        lines.extend(_size_group_detail_table(facts["size_analysis"], percent_digits))
+    lines.extend(["", "## 7. 重点管理人 Watchlist", ""])
     lines.extend(_watchlist(facts["focus_managers"][:max_focus], percent_digits))
-    lines.extend(["", "## 7. 本周异常与观察名单", ""])
+    lines.extend(["", "## 8. 本周异常与观察名单", ""])
     lines.extend(_alerts(facts["alerts"], max_alerts))
-    lines.extend(["", "## 8. 数据质量与口径", ""])
+    lines.extend(["", "## 9. 数据质量与口径", ""])
     quality = facts["data_quality"]
     lines.extend([
         "- 缺失策略：{}".format(_text_list(quality["missing_strategies"])),
         "- 样本不足：{}".format(_text_list(quality["insufficient_samples"])),
+        "- 管理规模字段覆盖：{}；未知规模观测：{}。".format(
+            _pct(quality["size_category_coverage"], percent_digits),
+            quality["unknown_size_observation_count"]),
         "- 超额口径：{}".format(facts["methodology"]["excess_definition"]),
         "- 近4/12周超额聚合：{}".format(facts["methodology"]["rolling_excess_aggregation"]),
+        "- 指增 Alpha 热力图：{}；{}。".format(
+            facts["methodology"]["alpha_heatmap_grain"],
+            facts["methodology"]["alpha_heatmap_metric"]),
+        "- 口径区别：近4/12周是单个管理人周超额的滚动累计；Alpha 热力图是每个实际报告周重新计算管理人横截面，不跨周累计。",
         "- 基准实际取值日期：见 `report_facts.json` 的 `market.benchmarks`。",
         "- V2A 风格口径：{}".format(facts["methodology"]["style_return_definition"]),
         "- V2A 风格数据：{}/{} 个代理本周可用；实际取值日期见 `market.style`。".format(
@@ -112,6 +129,12 @@ def _conclusion_lines(facts: dict[str, Any], digits: int) -> list[str]:
     style_headline = facts["market"].get("style", {}).get("summary", {}).get("headline")
     if style_headline:
         lines.append(f"| V2A 风格 | {_cell(style_headline)} |")
+    alpha_headline = facts.get("alpha_heatmap", {}).get("summary", {}).get("headline")
+    if facts.get("alpha_heatmap", {}).get("enabled") and alpha_headline:
+        lines.append(f"| 指增 Alpha | {_cell(alpha_headline)} |")
+    size_headline = facts.get("size_analysis", {}).get("summary", {}).get("headline")
+    if facts.get("size_analysis", {}).get("enabled") and size_headline:
+        lines.append(f"| 管理规模 | {_cell(size_headline)} |")
     return lines
 
 
@@ -224,6 +247,110 @@ def _trend_table(items: list[dict[str, Any]], digits: int) -> list[str]:
             _pct(item["comparison"].get("median_excess_change"), digits),
         ))
     return lines
+
+
+def _alpha_median_heatmap(alpha_heatmap: dict[str, Any], digits: int) -> list[str]:
+    dates = alpha_heatmap["weeks"]
+    if not dates:
+        return ["指增 Alpha 历史不足。"]
+    lines = ["| 策略 | {} | 当前状态 |".format(" | ".join(day[5:] for day in dates))]
+    lines.append("|---|{}|---|".format("|".join("---:" for _ in dates)))
+    for strategy in _ordered_strategies(alpha_heatmap["strategies"]):
+        points = {point["as_of_date"]: point for point in strategy["history"]}
+        cells = [_alpha_median_cell(points.get(day), digits) for day in dates]
+        lines.append("| {} | {} | {} |".format(
+            _cell(strategy["strategy_label"]), " | ".join(cells),
+            _cell(strategy["trend"]["label"])))
+    lines.extend([
+        "",
+        "> `↑`/`↓` 表示当周管理人超额中位数方向，`≈` 表示绝对值不超过0.05%，"
+        "`—` 表示样本不足或数据缺失。",
+    ])
+    return lines
+
+
+def _alpha_positive_ratio_heatmap(alpha_heatmap: dict[str, Any], digits: int) -> list[str]:
+    dates = alpha_heatmap["weeks"]
+    if not dates:
+        return ["指增正超额管理人比例历史不足。"]
+    lines = ["| 策略 | {} |".format(" | ".join(day[5:] for day in dates))]
+    lines.append("|---|{}|".format("|".join("---:" for _ in dates)))
+    for strategy in _ordered_strategies(alpha_heatmap["strategies"]):
+        points = {point["as_of_date"]: point for point in strategy["history"]}
+        cells = [_alpha_ratio_cell(points.get(day), digits) for day in dates]
+        lines.append("| {} | {} |".format(
+            _cell(strategy["strategy_label"]), " | ".join(cells)))
+    lines.extend([
+        "",
+        "> 比例分母为当周该策略 `weekly_excess` 有效的管理人数量；样本不足显示 `—`，缺失值不按 0 处理。",
+    ])
+    return lines
+
+
+def _alpha_median_cell(point: Any, digits: int) -> str:
+    if not point or point["status"] == "insufficient_sample":
+        return "—"
+    value = point["median_weekly_excess"]
+    if value is None:
+        return "—"
+    symbol = {"positive": "↑", "negative": "↓", "neutral": "≈"}[point["status"]]
+    return symbol + _pct(abs(float(value)), digits)
+
+
+def _alpha_ratio_cell(point: Any, digits: int) -> str:
+    if not point or point["status"] == "insufficient_sample":
+        return "—"
+    return _pct(point["positive_excess_ratio"], digits)
+
+
+def _size_group_summary_table(size_analysis: dict[str, Any], digits: int) -> list[str]:
+    groups = size_analysis["groups"]
+    labels = [group["group_label"] for group in groups]
+    lines = [
+        "| 策略 | {} | 规模观察 |".format(
+            " | ".join(f"{_cell(label)}超额中位数" for label in labels)),
+        "|---|{}|---|".format("|".join("---:" for _ in groups)),
+    ]
+    for strategy in _ordered_strategies(size_analysis["strategies"]):
+        facts_by_key = {group["group_key"]: group for group in strategy["groups"]}
+        cells = [
+            _size_group_summary_cell(facts_by_key[group["group_key"]], digits)
+            for group in groups
+        ]
+        lines.append("| {} | {} | {} |".format(
+            _cell(strategy["strategy_label"]), " | ".join(cells),
+            _cell(strategy["effect_summary"]["headline"])))
+    return lines
+
+
+def _size_group_detail_table(size_analysis: dict[str, Any], digits: int) -> list[str]:
+    lines = [
+        "| 策略 | 规模组 | 样本数 | 超额中位数 | P25 | P75 | 正超额比例 |",
+        "|---|---|---:|---:|---:|---:|---:|",
+    ]
+    configured_keys = [group["group_key"] for group in size_analysis["groups"]]
+    for strategy in _ordered_strategies(size_analysis["strategies"]):
+        facts_by_key = {group["group_key"]: group for group in strategy["groups"]}
+        for group_key in configured_keys:
+            group = facts_by_key[group_key]
+            if group["status"] == "insufficient_sample":
+                median, p25, p75, ratio = (
+                    f"样本不足（n={group['sample_size']}）", "—", "—", "—")
+            else:
+                median = _pct(group["weekly_excess_median"], digits)
+                p25 = _pct(group["weekly_excess_p25"], digits)
+                p75 = _pct(group["weekly_excess_p75"], digits)
+                ratio = _pct(group["positive_excess_ratio"], digits)
+            lines.append("| {} | {} | {} | {} | {} | {} | {} |".format(
+                _cell(strategy["strategy_label"]), _cell(group["group_label"]),
+                group["sample_size"], median, p25, p75, ratio))
+    return lines
+
+
+def _size_group_summary_cell(group: dict[str, Any], digits: int) -> str:
+    if group["status"] == "insufficient_sample":
+        return "样本不足（n={}）".format(group["sample_size"])
+    return _pct(group["weekly_excess_median"], digits)
 
 
 def _all_ranked(facts: dict[str, Any]) -> list[dict[str, Any]]:

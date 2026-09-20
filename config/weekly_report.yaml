@@ -7,6 +7,26 @@ report:
   min_sample_size: 5
   timezone: Asia/Shanghai
 
+alpha_heatmap:
+  enabled: true
+  weeks: 12
+  neutral_excess_threshold: 0.0005
+
+size_groups:
+  enabled: true
+  min_size_group_sample_size: 5
+  size_effect_min_gap: 0.002
+  groups:
+    large:
+      label: 百亿以上
+      categories: [100亿以上]
+    medium:
+      label: 20~100亿
+      categories: [20~50亿, 50~100亿]
+    small:
+      label: 20亿以下
+      categories: [0~5亿, 5~10亿, 10~20亿]
+
 benchmarks:
   CSI300:
     label: 沪深300

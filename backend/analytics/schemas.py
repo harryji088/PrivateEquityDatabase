@@ -30,6 +30,7 @@ class WeeklyObservation:
     ytd_excess: float | None
     ytd_excess_drawdown: float | None
     source_row_id: str
+    size_category: str | None = None
 
 
 DEFAULT_STRATEGY_LABELS = {
@@ -86,6 +87,51 @@ def load_report_config(path: Path) -> dict[str, Any]:
         report.get("min_sample_size"), "report.min_sample_size", 1))
     if report.get("timezone") != "Asia/Shanghai":
         raise AnalyticsError("report.timezone must be Asia/Shanghai in V1")
+
+    alpha_heatmap = _require_mapping(config.get("alpha_heatmap"), "alpha_heatmap")
+    if not isinstance(alpha_heatmap.get("enabled"), bool):
+        raise AnalyticsError("alpha_heatmap.enabled must be boolean")
+    alpha_heatmap["weeks"] = int(_require_number(
+        alpha_heatmap.get("weeks"), "alpha_heatmap.weeks", 1))
+    alpha_heatmap["neutral_excess_threshold"] = _require_number(
+        alpha_heatmap.get("neutral_excess_threshold"),
+        "alpha_heatmap.neutral_excess_threshold", 0)
+    if alpha_heatmap["neutral_excess_threshold"] >= 1:
+        raise AnalyticsError("alpha_heatmap.neutral_excess_threshold must be < 1")
+
+    size_groups = _require_mapping(config.get("size_groups"), "size_groups")
+    if not isinstance(size_groups.get("enabled"), bool):
+        raise AnalyticsError("size_groups.enabled must be boolean")
+    size_groups["min_size_group_sample_size"] = int(_require_number(
+        size_groups.get("min_size_group_sample_size"),
+        "size_groups.min_size_group_sample_size", 1))
+    size_groups["size_effect_min_gap"] = _require_number(
+        size_groups.get("size_effect_min_gap"), "size_groups.size_effect_min_gap", 0)
+    if size_groups["size_effect_min_gap"] >= 1:
+        raise AnalyticsError("size_groups.size_effect_min_gap must be < 1")
+    group_config = _require_mapping(size_groups.get("groups"), "size_groups.groups")
+    if not group_config:
+        raise AnalyticsError("size_groups.groups must not be empty")
+    known_categories = {
+        "100亿以上", "50~100亿", "20~50亿", "10~20亿", "5~10亿", "0~5亿",
+    }
+    assigned_categories = []
+    for group_key, details in group_config.items():
+        details = _require_mapping(details, f"size_groups.groups.{group_key}")
+        if not isinstance(details.get("label"), str) or not details["label"]:
+            raise AnalyticsError(f"size_groups.groups.{group_key}.label must be a string")
+        categories = details.get("categories")
+        if not isinstance(categories, list) or not categories:
+            raise AnalyticsError(
+                f"size_groups.groups.{group_key}.categories must be a non-empty list")
+        if not all(isinstance(item, str) and item in known_categories for item in categories):
+            raise AnalyticsError(
+                f"size_groups.groups.{group_key}.categories contains an unknown category")
+        assigned_categories.extend(categories)
+    if len(assigned_categories) != len(set(assigned_categories)):
+        raise AnalyticsError("size_groups categories must not overlap")
+    if set(assigned_categories) != known_categories:
+        raise AnalyticsError("size_groups must assign every canonical size category exactly once")
 
     benchmarks = _require_mapping(config.get("benchmarks"), "benchmarks")
     for benchmark_key, details in benchmarks.items():

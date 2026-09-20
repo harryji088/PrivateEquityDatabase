@@ -5110,6 +5110,887 @@
       "strategy_label": "2000指增"
     }
   ],
+  "alpha_heatmap": {
+    "enabled": true,
+    "strategies": [
+      {
+        "history": [
+          {
+            "as_of_date": "2026-06-26",
+            "dispersion_p75_p25": 0.01575,
+            "median_weekly_excess": 0.0043,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.00505,
+            "p75": 0.010700000000000001,
+            "positive_excess_ratio": 0.6285714285714286,
+            "raw_observation_count": 35,
+            "sample_size": 35,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-07-03",
+            "dispersion_p75_p25": 0.0127,
+            "median_weekly_excess": 0.0045,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0031,
+            "p75": 0.0096,
+            "positive_excess_ratio": 0.6666666666666666,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-07-10",
+            "dispersion_p75_p25": 0.016149999999999998,
+            "median_weekly_excess": -0.0057,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.012549999999999999,
+            "p75": 0.0036,
+            "positive_excess_ratio": 0.34285714285714286,
+            "raw_observation_count": 35,
+            "sample_size": 35,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-17",
+            "dispersion_p75_p25": 0.026975,
+            "median_weekly_excess": -0.0144,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0281,
+            "p75": -0.0011249999999999997,
+            "positive_excess_ratio": 0.2647058823529412,
+            "raw_observation_count": 34,
+            "sample_size": 34,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-24",
+            "dispersion_p75_p25": 0.014600000000000002,
+            "median_weekly_excess": -0.008199999999999999,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.015925,
+            "p75": -0.001325,
+            "positive_excess_ratio": 0.20588235294117646,
+            "raw_observation_count": 34,
+            "sample_size": 34,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-31",
+            "dispersion_p75_p25": 0.024949999999999996,
+            "median_weekly_excess": 0.0083,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0049499999999999995,
+            "p75": 0.019999999999999997,
+            "positive_excess_ratio": 0.6,
+            "raw_observation_count": 35,
+            "sample_size": 35,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-07",
+            "dispersion_p75_p25": 0.022699999999999998,
+            "median_weekly_excess": 0.0252,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.00975,
+            "p75": 0.03245,
+            "positive_excess_ratio": 0.8857142857142857,
+            "raw_observation_count": 35,
+            "sample_size": 35,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-14",
+            "dispersion_p75_p25": 0.00605,
+            "median_weekly_excess": 0.0087,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0043,
+            "p75": 0.01035,
+            "positive_excess_ratio": 0.9714285714285714,
+            "raw_observation_count": 35,
+            "sample_size": 35,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-21",
+            "dispersion_p75_p25": 0.0067,
+            "median_weekly_excess": 0.0028,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0003,
+            "p75": 0.007,
+            "positive_excess_ratio": 0.78125,
+            "raw_observation_count": 32,
+            "sample_size": 32,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-28",
+            "dispersion_p75_p25": 0.007400000000000001,
+            "median_weekly_excess": 0.0053,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.00075,
+            "p75": 0.008150000000000001,
+            "positive_excess_ratio": 0.8064516129032258,
+            "raw_observation_count": 31,
+            "sample_size": 31,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-09-04",
+            "dispersion_p75_p25": 0.00655,
+            "median_weekly_excess": 0.0008,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.004125,
+            "p75": 0.002425,
+            "positive_excess_ratio": 0.5333333333333333,
+            "raw_observation_count": 30,
+            "sample_size": 30,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-09-11",
+            "dispersion_p75_p25": 0.005399999999999999,
+            "median_weekly_excess": 0.0046,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.00185,
+            "p75": 0.0072499999999999995,
+            "positive_excess_ratio": 0.8387096774193549,
+            "raw_observation_count": 31,
+            "sample_size": 31,
+            "status": "positive"
+          }
+        ],
+        "stability": {
+          "available_week_count": 12,
+          "current_negative_streak": 0,
+          "current_positive_streak": 7,
+          "insufficient_week_count": 0,
+          "negative_week_count": 3,
+          "neutral_week_count": 0,
+          "positive_week_count": 9,
+          "switch_count": 2
+        },
+        "strategy_key": "index_300",
+        "strategy_label": "300指增",
+        "trend": {
+          "label": "Alpha环境连续偏强",
+          "state": "sustained_positive"
+        }
+      },
+      {
+        "history": [
+          {
+            "as_of_date": "2026-06-26",
+            "dispersion_p75_p25": 0.020300000000000006,
+            "median_weekly_excess": -0.0134,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.025550000000000003,
+            "p75": -0.0052499999999999995,
+            "positive_excess_ratio": 0.12698412698412698,
+            "raw_observation_count": 63,
+            "sample_size": 63,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-03",
+            "dispersion_p75_p25": 0.019775,
+            "median_weekly_excess": -0.00019999999999999998,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.011850000000000001,
+            "p75": 0.007925,
+            "positive_excess_ratio": 0.5,
+            "raw_observation_count": 62,
+            "sample_size": 62,
+            "status": "neutral"
+          },
+          {
+            "as_of_date": "2026-07-10",
+            "dispersion_p75_p25": 0.013099999999999999,
+            "median_weekly_excess": -0.01505,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.022,
+            "p75": -0.0089,
+            "positive_excess_ratio": 0.13333333333333333,
+            "raw_observation_count": 60,
+            "sample_size": 60,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-17",
+            "dispersion_p75_p25": 0.024349999999999997,
+            "median_weekly_excess": -0.022600000000000002,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.032975,
+            "p75": -0.008624999999999999,
+            "positive_excess_ratio": 0.13793103448275862,
+            "raw_observation_count": 58,
+            "sample_size": 58,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-24",
+            "dispersion_p75_p25": 0.010875000000000001,
+            "median_weekly_excess": -0.0164,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.021475,
+            "p75": -0.0106,
+            "positive_excess_ratio": 0.1,
+            "raw_observation_count": 60,
+            "sample_size": 60,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-31",
+            "dispersion_p75_p25": 0.0166,
+            "median_weekly_excess": -0.0063999999999999994,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.014125,
+            "p75": 0.0024749999999999998,
+            "positive_excess_ratio": 0.2833333333333333,
+            "raw_observation_count": 60,
+            "sample_size": 60,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-08-07",
+            "dispersion_p75_p25": 0.027600000000000003,
+            "median_weekly_excess": 0.0326,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0224,
+            "p75": 0.05,
+            "positive_excess_ratio": 0.9508196721311475,
+            "raw_observation_count": 61,
+            "sample_size": 61,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-14",
+            "dispersion_p75_p25": 0.0072,
+            "median_weekly_excess": 0.011,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0077,
+            "p75": 0.0149,
+            "positive_excess_ratio": 0.9836065573770492,
+            "raw_observation_count": 61,
+            "sample_size": 61,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-21",
+            "dispersion_p75_p25": 0.00625,
+            "median_weekly_excess": 0.00435,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.001375,
+            "p75": 0.007625,
+            "positive_excess_ratio": 0.8333333333333334,
+            "raw_observation_count": 60,
+            "sample_size": 60,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-28",
+            "dispersion_p75_p25": 0.0058,
+            "median_weekly_excess": 0.00365,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0005499999999999999,
+            "p75": 0.00635,
+            "positive_excess_ratio": 0.7833333333333333,
+            "raw_observation_count": 60,
+            "sample_size": 60,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-09-04",
+            "dispersion_p75_p25": 0.00835,
+            "median_weekly_excess": 0.0052499999999999995,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.002375,
+            "p75": 0.010725,
+            "positive_excess_ratio": 0.875,
+            "raw_observation_count": 56,
+            "sample_size": 56,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-09-11",
+            "dispersion_p75_p25": 0.006325000000000001,
+            "median_weekly_excess": 0.0026,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0007999999999999999,
+            "p75": 0.005525,
+            "positive_excess_ratio": 0.7068965517241379,
+            "raw_observation_count": 58,
+            "sample_size": 58,
+            "status": "positive"
+          }
+        ],
+        "stability": {
+          "available_week_count": 12,
+          "current_negative_streak": 0,
+          "current_positive_streak": 6,
+          "insufficient_week_count": 0,
+          "negative_week_count": 5,
+          "neutral_week_count": 1,
+          "positive_week_count": 6,
+          "switch_count": 1
+        },
+        "strategy_key": "index_500",
+        "strategy_label": "500指增",
+        "trend": {
+          "label": "Alpha环境连续偏强",
+          "state": "sustained_positive"
+        }
+      },
+      {
+        "history": [
+          {
+            "as_of_date": "2026-06-26",
+            "dispersion_p75_p25": 0.0185,
+            "median_weekly_excess": -0.0013,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.01125,
+            "p75": 0.0072499999999999995,
+            "positive_excess_ratio": 0.49206349206349204,
+            "raw_observation_count": 63,
+            "sample_size": 63,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-03",
+            "dispersion_p75_p25": 0.01975,
+            "median_weekly_excess": 0.0044,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.00615,
+            "p75": 0.0136,
+            "positive_excess_ratio": 0.6349206349206349,
+            "raw_observation_count": 63,
+            "sample_size": 63,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-07-10",
+            "dispersion_p75_p25": 0.016399999999999998,
+            "median_weekly_excess": -0.0031,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.010849999999999999,
+            "p75": 0.00555,
+            "positive_excess_ratio": 0.34285714285714286,
+            "raw_observation_count": 70,
+            "sample_size": 70,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-17",
+            "dispersion_p75_p25": 0.030799999999999998,
+            "median_weekly_excess": -0.01845,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.032275,
+            "p75": -0.001475,
+            "positive_excess_ratio": 0.19117647058823528,
+            "raw_observation_count": 68,
+            "sample_size": 68,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-24",
+            "dispersion_p75_p25": 0.0112,
+            "median_weekly_excess": -0.0044,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0091,
+            "p75": 0.0021,
+            "positive_excess_ratio": 0.3333333333333333,
+            "raw_observation_count": 69,
+            "sample_size": 69,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-31",
+            "dispersion_p75_p25": 0.021399999999999995,
+            "median_weekly_excess": -0.0106,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.023649999999999997,
+            "p75": -0.0022500000000000003,
+            "positive_excess_ratio": 0.2112676056338028,
+            "raw_observation_count": 71,
+            "sample_size": 71,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-08-07",
+            "dispersion_p75_p25": 0.0308,
+            "median_weekly_excess": 0.0232,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.009649999999999999,
+            "p75": 0.04045,
+            "positive_excess_ratio": 0.9154929577464789,
+            "raw_observation_count": 71,
+            "sample_size": 71,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-14",
+            "dispersion_p75_p25": 0.0064,
+            "median_weekly_excess": 0.0066,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0039,
+            "p75": 0.0103,
+            "positive_excess_ratio": 0.8985507246376812,
+            "raw_observation_count": 69,
+            "sample_size": 69,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-21",
+            "dispersion_p75_p25": 0.0064,
+            "median_weekly_excess": 0.0064,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0041,
+            "p75": 0.0105,
+            "positive_excess_ratio": 0.8840579710144928,
+            "raw_observation_count": 69,
+            "sample_size": 69,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-28",
+            "dispersion_p75_p25": 0.0076500000000000005,
+            "median_weekly_excess": -0.001,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0047,
+            "p75": 0.00295,
+            "positive_excess_ratio": 0.417910447761194,
+            "raw_observation_count": 67,
+            "sample_size": 67,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-09-04",
+            "dispersion_p75_p25": 0.008,
+            "median_weekly_excess": 0.0044,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0006,
+            "p75": 0.0086,
+            "positive_excess_ratio": 0.8,
+            "raw_observation_count": 65,
+            "sample_size": 65,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-09-11",
+            "dispersion_p75_p25": 0.0075,
+            "median_weekly_excess": 0.0003,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0031,
+            "p75": 0.0044,
+            "positive_excess_ratio": 0.5076923076923077,
+            "raw_observation_count": 65,
+            "sample_size": 65,
+            "status": "neutral"
+          }
+        ],
+        "stability": {
+          "available_week_count": 12,
+          "current_negative_streak": 0,
+          "current_positive_streak": 0,
+          "insufficient_week_count": 0,
+          "negative_week_count": 6,
+          "neutral_week_count": 1,
+          "positive_week_count": 5,
+          "switch_count": 5
+        },
+        "strategy_key": "index_1000",
+        "strategy_label": "1000指增",
+        "trend": {
+          "label": "近期转弱",
+          "state": "deteriorating"
+        }
+      },
+      {
+        "history": [
+          {
+            "as_of_date": "2026-06-26",
+            "dispersion_p75_p25": 0.02135,
+            "median_weekly_excess": -0.0023499999999999997,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0101,
+            "p75": 0.01125,
+            "positive_excess_ratio": 0.4473684210526316,
+            "raw_observation_count": 38,
+            "sample_size": 38,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-03",
+            "dispersion_p75_p25": 0.018325,
+            "median_weekly_excess": 0.00375,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.002,
+            "p75": 0.016325,
+            "positive_excess_ratio": 0.6842105263157895,
+            "raw_observation_count": 38,
+            "sample_size": 38,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-07-10",
+            "dispersion_p75_p25": 0.017400000000000002,
+            "median_weekly_excess": 0.0081,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0007,
+            "p75": 0.0181,
+            "positive_excess_ratio": 0.7567567567567568,
+            "raw_observation_count": 37,
+            "sample_size": 37,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-07-17",
+            "dispersion_p75_p25": 0.0315,
+            "median_weekly_excess": -0.0044,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0183,
+            "p75": 0.0132,
+            "positive_excess_ratio": 0.42424242424242425,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-24",
+            "dispersion_p75_p25": 0.018125,
+            "median_weekly_excess": 0.00525,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0037749999999999997,
+            "p75": 0.01435,
+            "positive_excess_ratio": 0.6470588235294118,
+            "raw_observation_count": 34,
+            "sample_size": 34,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-07-31",
+            "dispersion_p75_p25": 0.0235,
+            "median_weekly_excess": 0.0009,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0086,
+            "p75": 0.0149,
+            "positive_excess_ratio": 0.5454545454545454,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-07",
+            "dispersion_p75_p25": 0.0293,
+            "median_weekly_excess": 0.012199999999999999,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.003475,
+            "p75": 0.025825,
+            "positive_excess_ratio": 0.6176470588235294,
+            "raw_observation_count": 34,
+            "sample_size": 34,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-14",
+            "dispersion_p75_p25": 0.0071,
+            "median_weekly_excess": 0.0025,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0005,
+            "p75": 0.0066,
+            "positive_excess_ratio": 0.7272727272727273,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-21",
+            "dispersion_p75_p25": 0.007099999999999999,
+            "median_weekly_excess": 0.0055,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0022,
+            "p75": 0.0093,
+            "positive_excess_ratio": 0.7878787878787878,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-28",
+            "dispersion_p75_p25": 0.0042,
+            "median_weekly_excess": -0.0001,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0025,
+            "p75": 0.0017,
+            "positive_excess_ratio": 0.48484848484848486,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "neutral"
+          },
+          {
+            "as_of_date": "2026-09-04",
+            "dispersion_p75_p25": 0.0064,
+            "median_weekly_excess": -0.0002,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0034000000000000002,
+            "p75": 0.003,
+            "positive_excess_ratio": 0.4838709677419355,
+            "raw_observation_count": 31,
+            "sample_size": 31,
+            "status": "neutral"
+          },
+          {
+            "as_of_date": "2026-09-11",
+            "dispersion_p75_p25": 0.0079,
+            "median_weekly_excess": 0.0018,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0021999999999999997,
+            "p75": 0.0057,
+            "positive_excess_ratio": 0.6774193548387096,
+            "raw_observation_count": 31,
+            "sample_size": 31,
+            "status": "positive"
+          }
+        ],
+        "stability": {
+          "available_week_count": 12,
+          "current_negative_streak": 0,
+          "current_positive_streak": 1,
+          "insufficient_week_count": 0,
+          "negative_week_count": 2,
+          "neutral_week_count": 2,
+          "positive_week_count": 8,
+          "switch_count": 3
+        },
+        "strategy_key": "index_2000",
+        "strategy_label": "2000指增",
+        "trend": {
+          "label": "近期改善",
+          "state": "improving"
+        }
+      },
+      {
+        "history": [
+          {
+            "as_of_date": "2026-06-26",
+            "dispersion_p75_p25": 0.014125,
+            "median_weekly_excess": 0.0036,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.006200000000000001,
+            "p75": 0.007925,
+            "positive_excess_ratio": 0.6666666666666666,
+            "raw_observation_count": 36,
+            "sample_size": 36,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-07-03",
+            "dispersion_p75_p25": 0.015224999999999999,
+            "median_weekly_excess": 0.0013,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.006275,
+            "p75": 0.00895,
+            "positive_excess_ratio": 0.5277777777777778,
+            "raw_observation_count": 36,
+            "sample_size": 36,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-07-10",
+            "dispersion_p75_p25": 0.0098,
+            "median_weekly_excess": -0.00825,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.013425,
+            "p75": -0.0036249999999999998,
+            "positive_excess_ratio": 0.19444444444444445,
+            "raw_observation_count": 36,
+            "sample_size": 36,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-17",
+            "dispersion_p75_p25": 0.028399999999999995,
+            "median_weekly_excess": -0.0258,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.04255,
+            "p75": -0.014150000000000001,
+            "positive_excess_ratio": 0.08571428571428572,
+            "raw_observation_count": 35,
+            "sample_size": 35,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-24",
+            "dispersion_p75_p25": 0.008400000000000001,
+            "median_weekly_excess": -0.0107,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0142,
+            "p75": -0.0058,
+            "positive_excess_ratio": 0.14285714285714285,
+            "raw_observation_count": 35,
+            "sample_size": 35,
+            "status": "negative"
+          },
+          {
+            "as_of_date": "2026-07-31",
+            "dispersion_p75_p25": 0.021699999999999997,
+            "median_weekly_excess": 0.0028,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0116,
+            "p75": 0.0101,
+            "positive_excess_ratio": 0.5151515151515151,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-07",
+            "dispersion_p75_p25": 0.033299999999999996,
+            "median_weekly_excess": 0.0299,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0158,
+            "p75": 0.0491,
+            "positive_excess_ratio": 1.0,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-14",
+            "dispersion_p75_p25": 0.009999999999999998,
+            "median_weekly_excess": 0.0088,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0033,
+            "p75": 0.0133,
+            "positive_excess_ratio": 0.8787878787878788,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-21",
+            "dispersion_p75_p25": 0.0061,
+            "median_weekly_excess": 0.0054,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0019,
+            "p75": 0.008,
+            "positive_excess_ratio": 0.8484848484848485,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-08-28",
+            "dispersion_p75_p25": 0.009000000000000001,
+            "median_weekly_excess": 0.0042,
+            "missing_weekly_excess_count": 0,
+            "p25": 0.0012,
+            "p75": 0.0102,
+            "positive_excess_ratio": 0.8484848484848485,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "positive"
+          },
+          {
+            "as_of_date": "2026-09-04",
+            "dispersion_p75_p25": 0.006,
+            "median_weekly_excess": 0.0005,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.0033,
+            "p75": 0.0027,
+            "positive_excess_ratio": 0.5454545454545454,
+            "raw_observation_count": 33,
+            "sample_size": 33,
+            "status": "neutral"
+          },
+          {
+            "as_of_date": "2026-09-11",
+            "dispersion_p75_p25": 0.00895,
+            "median_weekly_excess": 0.0038000000000000004,
+            "missing_weekly_excess_count": 0,
+            "p25": -0.00022499999999999994,
+            "p75": 0.008725,
+            "positive_excess_ratio": 0.75,
+            "raw_observation_count": 32,
+            "sample_size": 32,
+            "status": "positive"
+          }
+        ],
+        "stability": {
+          "available_week_count": 12,
+          "current_negative_streak": 0,
+          "current_positive_streak": 1,
+          "insufficient_week_count": 0,
+          "negative_week_count": 3,
+          "neutral_week_count": 1,
+          "positive_week_count": 8,
+          "switch_count": 2
+        },
+        "strategy_key": "index_a500",
+        "strategy_label": "A500指增",
+        "trend": {
+          "label": "近期波动",
+          "state": "mixed"
+        }
+      }
+    ],
+    "summary": {
+      "deteriorating": [
+        {
+          "strategy_key": "index_1000",
+          "strategy_label": "1000指增"
+        }
+      ],
+      "headline": "本周300指增横截面 Alpha 最强，1000指增最弱；300指增、500指增连续正向；2000指增边际改善；1000指增边际走弱。",
+      "improving": [
+        {
+          "strategy_key": "index_2000",
+          "strategy_label": "2000指增"
+        }
+      ],
+      "mixed": [
+        {
+          "strategy_key": "index_a500",
+          "strategy_label": "A500指增"
+        }
+      ],
+      "strongest_strategy": {
+        "median_weekly_excess": 0.0046,
+        "strategy_key": "index_300",
+        "strategy_label": "300指增"
+      },
+      "sustained_negative": [],
+      "sustained_positive": [
+        {
+          "strategy_key": "index_300",
+          "strategy_label": "300指增"
+        },
+        {
+          "strategy_key": "index_500",
+          "strategy_label": "500指增"
+        }
+      ],
+      "weakest_strategy": {
+        "median_weekly_excess": 0.0003,
+        "strategy_key": "index_1000",
+        "strategy_label": "1000指增"
+      }
+    },
+    "weeks": [
+      "2026-06-26",
+      "2026-07-03",
+      "2026-07-10",
+      "2026-07-17",
+      "2026-07-24",
+      "2026-07-31",
+      "2026-08-07",
+      "2026-08-14",
+      "2026-08-21",
+      "2026-08-28",
+      "2026-09-04",
+      "2026-09-11"
+    ]
+  },
   "analytics_version": "v2a",
   "as_of_date": "2026-09-11",
   "data_quality": {
@@ -5117,7 +5998,16 @@
     "missing_strategies": [],
     "raw_current_observation_count": 217,
     "sample_coverage": 1.0,
+    "size_category_coverage": 1.0,
     "status": "warning",
+    "unknown_size_by_strategy": {
+      "index_1000": 0,
+      "index_2000": 0,
+      "index_300": 0,
+      "index_500": 0,
+      "index_a500": 0
+    },
+    "unknown_size_observation_count": 0,
     "valid_weekly_excess_count": 217,
     "warnings": [
       "重点管理人 上海孝庸私募 在 2026-09-11 没有 1000指增 有效观测",
@@ -5706,7 +6596,7 @@
       "strategy_label": "A500指增"
     }
   ],
-  "generated_at": "2026-09-20T09:38:27+08:00",
+  "generated_at": "2026-09-20T11:09:38+08:00",
   "market": {
     "benchmarks": [
       {
@@ -8851,6 +9741,12 @@
     "warnings": []
   },
   "methodology": {
+    "alpha_heatmap_grain": "strategy_report_week_cross_section",
+    "alpha_heatmap_metric": "median_of_manager_strategy_weekly_excess",
+    "alpha_heatmap_neutral_threshold": 0.0005,
+    "alpha_heatmap_positive_ratio": "share_of_valid_manager_strategy_weekly_excess_strictly_above_zero",
+    "alpha_heatmap_vs_rolling": "weekly_cross_section_recomputed_each_date_not_individual_manager_rolling_cumulative_excess",
+    "alpha_heatmap_window": "latest_actual_report_dates_no_synthetic_weeks",
     "benchmark_return_definition": "nav(end_on_or_before_as_of) / nav(start_on_or_before_previous_as_of) - 1",
     "entity_grain": "manager_strategy",
     "excess_definition": "official_database_weekly_excess_by_strategy",
@@ -8868,7 +9764,1015 @@
     "weekly_return_source": "weekly_performances.weekly_return"
   },
   "previous_as_of_date": "2026-09-04",
-  "schema_version": "1.0",
+  "schema_version": "1.2",
+  "size_analysis": {
+    "as_of_date": "2026-09-11",
+    "category_order": [
+      "100亿以上",
+      "50~100亿",
+      "20~50亿",
+      "10~20亿",
+      "5~10亿",
+      "0~5亿"
+    ],
+    "enabled": true,
+    "groups": [
+      {
+        "categories": [
+          "100亿以上"
+        ],
+        "group_key": "large",
+        "group_label": "百亿以上"
+      },
+      {
+        "categories": [
+          "20~50亿",
+          "50~100亿"
+        ],
+        "group_key": "medium",
+        "group_label": "20~100亿"
+      },
+      {
+        "categories": [
+          "0~5亿",
+          "5~10亿",
+          "10~20亿"
+        ],
+        "group_key": "small",
+        "group_label": "20亿以下"
+      }
+    ],
+    "methodology": {
+      "grain": "strategy_current_week_size_group_cross_section",
+      "min_size_group_sample_size": 5,
+      "size_effect_min_gap": 0.002,
+      "source": "weekly_performances.size_category",
+      "unknown_category_policy": "excluded_from_groups_and_counted_in_data_quality"
+    },
+    "strategies": [
+      {
+        "categories": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "100亿以上",
+            "group_label": "100亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.9333333333333333,
+            "raw_observation_count": 15,
+            "sample_size": 15,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.006200000000000001,
+            "weekly_excess_median": 0.0057,
+            "weekly_excess_p25": 0.004,
+            "weekly_excess_p75": 0.0102,
+            "weekly_return_median": -0.0027,
+            "weekly_return_sample_size": 15
+          },
+          {
+            "categories": [
+              "50~100亿"
+            ],
+            "group_key": "50~100亿",
+            "group_label": "50~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.75,
+            "raw_observation_count": 4,
+            "sample_size": 4,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0056500000000000005,
+            "weekly_excess_median": 0.00375,
+            "weekly_excess_p25": 0.00115,
+            "weekly_excess_p75": 0.0068000000000000005,
+            "weekly_return_median": -0.0046,
+            "weekly_return_sample_size": 4
+          },
+          {
+            "categories": [
+              "20~50亿"
+            ],
+            "group_key": "20~50亿",
+            "group_label": "20~50亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 1.0,
+            "raw_observation_count": 4,
+            "sample_size": 4,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0022750000000000005,
+            "weekly_excess_median": 0.00255,
+            "weekly_excess_p25": 0.0018,
+            "weekly_excess_p75": 0.0040750000000000005,
+            "weekly_return_median": -0.005849999999999999,
+            "weekly_return_sample_size": 4
+          },
+          {
+            "categories": [
+              "10~20亿"
+            ],
+            "group_key": "10~20亿",
+            "group_label": "10~20亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5,
+            "raw_observation_count": 4,
+            "sample_size": 4,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.016475000000000004,
+            "weekly_excess_median": -0.0017000000000000001,
+            "weekly_excess_p25": -0.013525000000000002,
+            "weekly_excess_p75": 0.00295,
+            "weekly_return_median": -0.01,
+            "weekly_return_sample_size": 4
+          },
+          {
+            "categories": [
+              "5~10亿"
+            ],
+            "group_key": "5~10亿",
+            "group_label": "5~10亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 1.0,
+            "raw_observation_count": 1,
+            "sample_size": 1,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0,
+            "weekly_excess_median": 0.0028,
+            "weekly_excess_p25": 0.0028,
+            "weekly_excess_p75": 0.0028,
+            "weekly_return_median": -0.0056,
+            "weekly_return_sample_size": 1
+          },
+          {
+            "categories": [
+              "0~5亿"
+            ],
+            "group_key": "0~5亿",
+            "group_label": "0~5亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.6666666666666666,
+            "raw_observation_count": 3,
+            "sample_size": 3,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.01065,
+            "weekly_excess_median": 0.0051,
+            "weekly_excess_p25": -0.0012500000000000002,
+            "weekly_excess_p75": 0.0094,
+            "weekly_return_median": -0.0033,
+            "weekly_return_sample_size": 3
+          }
+        ],
+        "effect_summary": {
+          "best_group": "百亿以上",
+          "best_group_key": "large",
+          "headline": "300指增本周百亿以上管理人超额中位数较20亿以下高0.32个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.0032,
+          "status": "meaningful",
+          "strategy_key": "index_300",
+          "worst_group": "20亿以下",
+          "worst_group_key": "small"
+        },
+        "groups": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "large",
+            "group_label": "百亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.9333333333333333,
+            "raw_observation_count": 15,
+            "sample_size": 15,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.006200000000000001,
+            "weekly_excess_median": 0.0057,
+            "weekly_excess_p25": 0.004,
+            "weekly_excess_p75": 0.0102,
+            "weekly_return_median": -0.0027,
+            "weekly_return_sample_size": 15
+          },
+          {
+            "categories": [
+              "20~50亿",
+              "50~100亿"
+            ],
+            "group_key": "medium",
+            "group_label": "20~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.875,
+            "raw_observation_count": 8,
+            "sample_size": 8,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.0042250000000000005,
+            "weekly_excess_median": 0.00255,
+            "weekly_excess_p25": 0.001725,
+            "weekly_excess_p75": 0.00595,
+            "weekly_return_median": -0.005849999999999999,
+            "weekly_return_sample_size": 8
+          },
+          {
+            "categories": [
+              "0~5亿",
+              "5~10亿",
+              "10~20亿"
+            ],
+            "group_key": "small",
+            "group_label": "20亿以下",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.625,
+            "raw_observation_count": 8,
+            "sample_size": 8,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.011224999999999999,
+            "weekly_excess_median": 0.0025,
+            "weekly_excess_p25": -0.0060999999999999995,
+            "weekly_excess_p75": 0.005125,
+            "weekly_return_median": -0.00585,
+            "weekly_return_sample_size": 8
+          }
+        ],
+        "strategy_key": "index_300",
+        "strategy_label": "300指增",
+        "unknown_size_count": 0,
+        "unknown_size_valid_excess_count": 0
+      },
+      {
+        "categories": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "100亿以上",
+            "group_label": "100亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.8823529411764706,
+            "raw_observation_count": 34,
+            "sample_size": 34,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.005775,
+            "weekly_excess_median": 0.00455,
+            "weekly_excess_p25": 0.001825,
+            "weekly_excess_p75": 0.0076,
+            "weekly_return_median": -0.0049499999999999995,
+            "weekly_return_sample_size": 34
+          },
+          {
+            "categories": [
+              "50~100亿"
+            ],
+            "group_key": "50~100亿",
+            "group_label": "50~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5714285714285714,
+            "raw_observation_count": 7,
+            "sample_size": 7,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.007899999999999999,
+            "weekly_excess_median": 0.0012,
+            "weekly_excess_p25": -0.00565,
+            "weekly_excess_p75": 0.00225,
+            "weekly_return_median": -0.0082,
+            "weekly_return_sample_size": 7
+          },
+          {
+            "categories": [
+              "20~50亿"
+            ],
+            "group_key": "20~50亿",
+            "group_label": "20~50亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.2857142857142857,
+            "raw_observation_count": 7,
+            "sample_size": 7,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.006600000000000001,
+            "weekly_excess_median": -0.0038,
+            "weekly_excess_p25": -0.006750000000000001,
+            "weekly_excess_p75": -0.00015000000000000001,
+            "weekly_return_median": -0.0132,
+            "weekly_return_sample_size": 7
+          },
+          {
+            "categories": [
+              "10~20亿"
+            ],
+            "group_key": "10~20亿",
+            "group_label": "10~20亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.6,
+            "raw_observation_count": 5,
+            "sample_size": 5,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.0053,
+            "weekly_excess_median": 0.002,
+            "weekly_excess_p25": -0.0027,
+            "weekly_excess_p75": 0.0026,
+            "weekly_return_median": -0.0074,
+            "weekly_return_sample_size": 5
+          },
+          {
+            "categories": [
+              "5~10亿"
+            ],
+            "group_key": "5~10亿",
+            "group_label": "5~10亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.0,
+            "raw_observation_count": 3,
+            "sample_size": 3,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.010199999999999999,
+            "weekly_excess_median": -0.0013,
+            "weekly_excess_p25": -0.011049999999999999,
+            "weekly_excess_p75": -0.00085,
+            "weekly_return_median": -0.0107,
+            "weekly_return_sample_size": 3
+          },
+          {
+            "categories": [
+              "0~5亿"
+            ],
+            "group_key": "0~5亿",
+            "group_label": "0~5亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 1.0,
+            "raw_observation_count": 2,
+            "sample_size": 2,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0007999999999999997,
+            "weekly_excess_median": 0.0018,
+            "weekly_excess_p25": 0.0014,
+            "weekly_excess_p75": 0.0021999999999999997,
+            "weekly_return_median": -0.0076500000000000005,
+            "weekly_return_sample_size": 2
+          }
+        ],
+        "effect_summary": {
+          "best_group": "百亿以上",
+          "best_group_key": "large",
+          "headline": "500指增本周百亿以上管理人超额中位数较20~100亿高0.66个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.00655,
+          "status": "meaningful",
+          "strategy_key": "index_500",
+          "worst_group": "20~100亿",
+          "worst_group_key": "medium"
+        },
+        "groups": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "large",
+            "group_label": "百亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.8823529411764706,
+            "raw_observation_count": 34,
+            "sample_size": 34,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.005775,
+            "weekly_excess_median": 0.00455,
+            "weekly_excess_p25": 0.001825,
+            "weekly_excess_p75": 0.0076,
+            "weekly_return_median": -0.0049499999999999995,
+            "weekly_return_sample_size": 34
+          },
+          {
+            "categories": [
+              "20~50亿",
+              "50~100亿"
+            ],
+            "group_key": "medium",
+            "group_label": "20~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.42857142857142855,
+            "raw_observation_count": 14,
+            "sample_size": 14,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.008525,
+            "weekly_excess_median": -0.002,
+            "weekly_excess_p25": -0.00695,
+            "weekly_excess_p75": 0.001575,
+            "weekly_return_median": -0.0114,
+            "weekly_return_sample_size": 14
+          },
+          {
+            "categories": [
+              "0~5亿",
+              "5~10亿",
+              "10~20亿"
+            ],
+            "group_key": "small",
+            "group_label": "20亿以下",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5,
+            "raw_observation_count": 10,
+            "sample_size": 10,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.0048000000000000004,
+            "weekly_excess_median": 0.0003,
+            "weekly_excess_p25": -0.00235,
+            "weekly_excess_p75": 0.00245,
+            "weekly_return_median": -0.00915,
+            "weekly_return_sample_size": 10
+          }
+        ],
+        "strategy_key": "index_500",
+        "strategy_label": "500指增",
+        "unknown_size_count": 0,
+        "unknown_size_valid_excess_count": 0
+      },
+      {
+        "categories": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "100亿以上",
+            "group_label": "100亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5555555555555556,
+            "raw_observation_count": 36,
+            "sample_size": 36,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.006625,
+            "weekly_excess_median": 0.0015999999999999999,
+            "weekly_excess_p25": -0.00095,
+            "weekly_excess_p75": 0.0056749999999999995,
+            "weekly_return_median": -0.0092,
+            "weekly_return_sample_size": 36
+          },
+          {
+            "categories": [
+              "50~100亿"
+            ],
+            "group_key": "50~100亿",
+            "group_label": "50~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.4444444444444444,
+            "raw_observation_count": 9,
+            "sample_size": 9,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.0089,
+            "weekly_excess_median": -0.0012,
+            "weekly_excess_p25": -0.0048,
+            "weekly_excess_p75": 0.0041,
+            "weekly_return_median": -0.012,
+            "weekly_return_sample_size": 9
+          },
+          {
+            "categories": [
+              "20~50亿"
+            ],
+            "group_key": "20~50亿",
+            "group_label": "20~50亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.375,
+            "raw_observation_count": 8,
+            "sample_size": 8,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.00745,
+            "weekly_excess_median": -0.00475,
+            "weekly_excess_p25": -0.00585,
+            "weekly_excess_p75": 0.0015999999999999999,
+            "weekly_return_median": -0.015449999999999998,
+            "weekly_return_sample_size": 8
+          },
+          {
+            "categories": [
+              "10~20亿"
+            ],
+            "group_key": "10~20亿",
+            "group_label": "10~20亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5714285714285714,
+            "raw_observation_count": 7,
+            "sample_size": 7,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.00745,
+            "weekly_excess_median": 0.0018,
+            "weekly_excess_p25": -0.00315,
+            "weekly_excess_p75": 0.0043,
+            "weekly_return_median": -0.009,
+            "weekly_return_sample_size": 7
+          },
+          {
+            "categories": [
+              "5~10亿"
+            ],
+            "group_key": "5~10亿",
+            "group_label": "5~10亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.3333333333333333,
+            "raw_observation_count": 3,
+            "sample_size": 3,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.004399999999999999,
+            "weekly_excess_median": -0.0031,
+            "weekly_excess_p25": -0.00385,
+            "weekly_excess_p75": 0.0005499999999999997,
+            "weekly_return_median": -0.0139,
+            "weekly_return_sample_size": 3
+          },
+          {
+            "categories": [
+              "0~5亿"
+            ],
+            "group_key": "0~5亿",
+            "group_label": "0~5亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5,
+            "raw_observation_count": 2,
+            "sample_size": 2,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0036999999999999997,
+            "weekly_excess_median": 0.0031,
+            "weekly_excess_p25": 0.0012499999999999998,
+            "weekly_excess_p75": 0.0049499999999999995,
+            "weekly_return_median": -0.00765,
+            "weekly_return_sample_size": 2
+          }
+        ],
+        "effect_summary": {
+          "best_group": "百亿以上",
+          "best_group_key": "large",
+          "headline": "1000指增本周百亿以上管理人超额中位数较20~100亿高0.32个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.0031999999999999997,
+          "status": "meaningful",
+          "strategy_key": "index_1000",
+          "worst_group": "20~100亿",
+          "worst_group_key": "medium"
+        },
+        "groups": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "large",
+            "group_label": "百亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5555555555555556,
+            "raw_observation_count": 36,
+            "sample_size": 36,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.006625,
+            "weekly_excess_median": 0.0015999999999999999,
+            "weekly_excess_p25": -0.00095,
+            "weekly_excess_p75": 0.0056749999999999995,
+            "weekly_return_median": -0.0092,
+            "weekly_return_sample_size": 36
+          },
+          {
+            "categories": [
+              "20~50亿",
+              "50~100亿"
+            ],
+            "group_key": "medium",
+            "group_label": "20~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.4117647058823529,
+            "raw_observation_count": 17,
+            "sample_size": 17,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.0085,
+            "weekly_excess_median": -0.0016,
+            "weekly_excess_p25": -0.0057,
+            "weekly_excess_p75": 0.0028,
+            "weekly_return_median": -0.0124,
+            "weekly_return_sample_size": 17
+          },
+          {
+            "categories": [
+              "0~5亿",
+              "5~10亿",
+              "10~20亿"
+            ],
+            "group_key": "small",
+            "group_label": "20亿以下",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5,
+            "raw_observation_count": 12,
+            "sample_size": 12,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.00785,
+            "weekly_excess_median": 0.0006,
+            "weekly_excess_p25": -0.003475,
+            "weekly_excess_p75": 0.0043749999999999995,
+            "weekly_return_median": -0.01015,
+            "weekly_return_sample_size": 12
+          }
+        ],
+        "strategy_key": "index_1000",
+        "strategy_label": "1000指增",
+        "unknown_size_count": 0,
+        "unknown_size_valid_excess_count": 0
+      },
+      {
+        "categories": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "100亿以上",
+            "group_label": "100亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.8823529411764706,
+            "raw_observation_count": 17,
+            "sample_size": 17,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.004,
+            "weekly_excess_median": 0.0027,
+            "weekly_excess_p25": 0.0016,
+            "weekly_excess_p75": 0.0056,
+            "weekly_return_median": -0.0124,
+            "weekly_return_sample_size": 17
+          },
+          {
+            "categories": [
+              "50~100亿"
+            ],
+            "group_key": "50~100亿",
+            "group_label": "50~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.6666666666666666,
+            "raw_observation_count": 3,
+            "sample_size": 3,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0056,
+            "weekly_excess_median": 0.0058,
+            "weekly_excess_p25": 0.0009500000000000003,
+            "weekly_excess_p75": 0.00655,
+            "weekly_return_median": -0.0094,
+            "weekly_return_sample_size": 3
+          },
+          {
+            "categories": [
+              "20~50亿"
+            ],
+            "group_key": "20~50亿",
+            "group_label": "20~50亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.6,
+            "raw_observation_count": 5,
+            "sample_size": 5,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.013600000000000001,
+            "weekly_excess_median": 0.0005,
+            "weekly_excess_p25": -0.0077,
+            "weekly_excess_p75": 0.0059,
+            "weekly_return_median": -0.0145,
+            "weekly_return_sample_size": 5
+          },
+          {
+            "categories": [
+              "10~20亿"
+            ],
+            "group_key": "10~20亿",
+            "group_label": "10~20亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 1.0,
+            "raw_observation_count": 1,
+            "sample_size": 1,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0,
+            "weekly_excess_median": 0.0041,
+            "weekly_excess_p25": 0.0041,
+            "weekly_excess_p75": 0.0041,
+            "weekly_return_median": -0.011,
+            "weekly_return_sample_size": 1
+          },
+          {
+            "categories": [
+              "5~10亿"
+            ],
+            "group_key": "5~10亿",
+            "group_label": "5~10亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.0,
+            "raw_observation_count": 4,
+            "sample_size": 4,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.00265,
+            "weekly_excess_median": -0.0023,
+            "weekly_excess_p25": -0.0049,
+            "weekly_excess_p75": -0.00225,
+            "weekly_return_median": -0.0173,
+            "weekly_return_sample_size": 4
+          },
+          {
+            "categories": [
+              "0~5亿"
+            ],
+            "group_key": "0~5亿",
+            "group_label": "0~5亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.0,
+            "raw_observation_count": 1,
+            "sample_size": 1,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0,
+            "weekly_excess_median": -0.0175,
+            "weekly_excess_p25": -0.0175,
+            "weekly_excess_p75": -0.0175,
+            "weekly_return_median": -0.0323,
+            "weekly_return_sample_size": 1
+          }
+        ],
+        "effect_summary": {
+          "best_group": "20~100亿",
+          "best_group_key": "medium",
+          "headline": "2000指增本周20~100亿管理人超额中位数较20亿以下高0.55个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.00545,
+          "status": "meaningful",
+          "strategy_key": "index_2000",
+          "worst_group": "20亿以下",
+          "worst_group_key": "small"
+        },
+        "groups": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "large",
+            "group_label": "百亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.8823529411764706,
+            "raw_observation_count": 17,
+            "sample_size": 17,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.004,
+            "weekly_excess_median": 0.0027,
+            "weekly_excess_p25": 0.0016,
+            "weekly_excess_p75": 0.0056,
+            "weekly_return_median": -0.0124,
+            "weekly_return_sample_size": 17
+          },
+          {
+            "categories": [
+              "20~50亿",
+              "50~100亿"
+            ],
+            "group_key": "medium",
+            "group_label": "20~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.625,
+            "raw_observation_count": 8,
+            "sample_size": 8,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.0111,
+            "weekly_excess_median": 0.0031499999999999996,
+            "weekly_excess_p25": -0.00485,
+            "weekly_excess_p75": 0.00625,
+            "weekly_return_median": -0.01195,
+            "weekly_return_sample_size": 8
+          },
+          {
+            "categories": [
+              "0~5亿",
+              "5~10亿",
+              "10~20亿"
+            ],
+            "group_key": "small",
+            "group_label": "20亿以下",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.16666666666666666,
+            "raw_observation_count": 6,
+            "sample_size": 6,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.007949999999999999,
+            "weekly_excess_median": -0.0023,
+            "weekly_excess_p25": -0.0101,
+            "weekly_excess_p75": -0.00215,
+            "weekly_return_median": -0.0173,
+            "weekly_return_sample_size": 6
+          }
+        ],
+        "strategy_key": "index_2000",
+        "strategy_label": "2000指增",
+        "unknown_size_count": 0,
+        "unknown_size_valid_excess_count": 0
+      },
+      {
+        "categories": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "100亿以上",
+            "group_label": "100亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.9,
+            "raw_observation_count": 20,
+            "sample_size": 20,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.0081,
+            "weekly_excess_median": 0.0057,
+            "weekly_excess_p25": 0.003375,
+            "weekly_excess_p75": 0.011474999999999999,
+            "weekly_return_median": -0.003,
+            "weekly_return_sample_size": 20
+          },
+          {
+            "categories": [
+              "50~100亿"
+            ],
+            "group_key": "50~100亿",
+            "group_label": "50~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 1.0,
+            "raw_observation_count": 1,
+            "sample_size": 1,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0,
+            "weekly_excess_median": 0.0002,
+            "weekly_excess_p25": 0.0002,
+            "weekly_excess_p75": 0.0002,
+            "weekly_return_median": -0.0084,
+            "weekly_return_sample_size": 1
+          },
+          {
+            "categories": [
+              "20~50亿"
+            ],
+            "group_key": "20~50亿",
+            "group_label": "20~50亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.6666666666666666,
+            "raw_observation_count": 3,
+            "sample_size": 3,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0043,
+            "weekly_excess_median": 0.0023,
+            "weekly_excess_p25": 5.000000000000013e-05,
+            "weekly_excess_p75": 0.00435,
+            "weekly_return_median": -0.0063,
+            "weekly_return_sample_size": 3
+          },
+          {
+            "categories": [
+              "10~20亿"
+            ],
+            "group_key": "10~20亿",
+            "group_label": "10~20亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.25,
+            "raw_observation_count": 4,
+            "sample_size": 4,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.0071,
+            "weekly_excess_median": -0.007350000000000001,
+            "weekly_excess_p25": -0.0106,
+            "weekly_excess_p75": -0.0035,
+            "weekly_return_median": -0.01595,
+            "weekly_return_sample_size": 4
+          },
+          {
+            "categories": [
+              "5~10亿"
+            ],
+            "group_key": "5~10亿",
+            "group_label": "5~10亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.5,
+            "raw_observation_count": 4,
+            "sample_size": 4,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.00725,
+            "weekly_excess_median": -0.0014500000000000001,
+            "weekly_excess_p25": -0.004825,
+            "weekly_excess_p75": 0.002425,
+            "weekly_return_median": -0.0101,
+            "weekly_return_sample_size": 4
+          },
+          {
+            "categories": [
+              "0~5亿"
+            ],
+            "group_key": "0~5亿",
+            "group_label": "0~5亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": null,
+            "raw_observation_count": 0,
+            "sample_size": 0,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": null,
+            "weekly_excess_median": null,
+            "weekly_excess_p25": null,
+            "weekly_excess_p75": null,
+            "weekly_return_median": null,
+            "weekly_return_sample_size": 0
+          }
+        ],
+        "effect_summary": {
+          "best_group": "百亿以上",
+          "best_group_key": "large",
+          "headline": "A500指增本周百亿以上管理人超额中位数较20亿以下高1.05个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.01055,
+          "status": "meaningful",
+          "strategy_key": "index_a500",
+          "worst_group": "20亿以下",
+          "worst_group_key": "small"
+        },
+        "groups": [
+          {
+            "categories": [
+              "100亿以上"
+            ],
+            "group_key": "large",
+            "group_label": "百亿以上",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.9,
+            "raw_observation_count": 20,
+            "sample_size": 20,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.0081,
+            "weekly_excess_median": 0.0057,
+            "weekly_excess_p25": 0.003375,
+            "weekly_excess_p75": 0.011474999999999999,
+            "weekly_return_median": -0.003,
+            "weekly_return_sample_size": 20
+          },
+          {
+            "categories": [
+              "20~50亿",
+              "50~100亿"
+            ],
+            "group_key": "medium",
+            "group_label": "20~100亿",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.75,
+            "raw_observation_count": 4,
+            "sample_size": 4,
+            "status": "insufficient_sample",
+            "weekly_excess_dispersion": 0.003725,
+            "weekly_excess_median": 0.00125,
+            "weekly_excess_p25": -0.00039999999999999996,
+            "weekly_excess_p75": 0.003325,
+            "weekly_return_median": -0.00735,
+            "weekly_return_sample_size": 4
+          },
+          {
+            "categories": [
+              "0~5亿",
+              "5~10亿",
+              "10~20亿"
+            ],
+            "group_key": "small",
+            "group_label": "20亿以下",
+            "missing_weekly_excess_count": 0,
+            "positive_excess_ratio": 0.375,
+            "raw_observation_count": 8,
+            "sample_size": 8,
+            "status": "ok",
+            "weekly_excess_dispersion": 0.010175,
+            "weekly_excess_median": -0.00485,
+            "weekly_excess_p25": -0.008575,
+            "weekly_excess_p75": 0.0016,
+            "weekly_return_median": -0.01345,
+            "weekly_return_sample_size": 8
+          }
+        ],
+        "strategy_key": "index_a500",
+        "strategy_label": "A500指增",
+        "unknown_size_count": 0,
+        "unknown_size_valid_excess_count": 0
+      }
+    ],
+    "summary": {
+      "headline": "A500指增本周百亿以上管理人超额中位数较20亿以下高1.05个百分点，规模组之间存在较明显分化。",
+      "meaningful_effect_count": 5,
+      "meaningful_effects": [
+        {
+          "headline": "300指增本周百亿以上管理人超额中位数较20亿以下高0.32个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.0032,
+          "strategy_key": "index_300",
+          "strategy_label": "300指增"
+        },
+        {
+          "headline": "500指增本周百亿以上管理人超额中位数较20~100亿高0.66个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.00655,
+          "strategy_key": "index_500",
+          "strategy_label": "500指增"
+        },
+        {
+          "headline": "1000指增本周百亿以上管理人超额中位数较20~100亿高0.32个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.0031999999999999997,
+          "strategy_key": "index_1000",
+          "strategy_label": "1000指增"
+        },
+        {
+          "headline": "2000指增本周20~100亿管理人超额中位数较20亿以下高0.55个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.00545,
+          "strategy_key": "index_2000",
+          "strategy_label": "2000指增"
+        },
+        {
+          "headline": "A500指增本周百亿以上管理人超额中位数较20亿以下高1.05个百分点，规模组之间存在较明显分化。",
+          "median_gap": 0.01055,
+          "strategy_key": "index_a500",
+          "strategy_label": "A500指增"
+        }
+      ]
+    }
+  },
   "strategy_summary": [
     {
       "as_of_date": "2026-09-11",
