@@ -1,118 +1,133 @@
 #!/usr/bin/env bash
-# kb_download.sh — 从知识库某文件夹下载缺失的文件到本地目录。
-#
-# 用法:
-#   scripts/ima/kb_download.sh <folder_id> "<目标目录>" [数量N] [--from-cache]
-#
-#   --from-cache  跳过 API walk，直接使用 scripts/ima/cache/<folder_id>.json
-#                 缓存不存在时自动降级为 API walk
-#
-# 行为:
-#   1. 获取远端文件清单（API walk 或缓存）
-#   2. 与目标目录已有文件按"去空格归一化"比对，得出缺失清单
-#   3. 逐个 get_media_info 取签名URL → curl 下载 → 校验 %PDF 魔数(仅.pdf)
-#   4. note 类型(media_type=11)跳过(API 无下载链接)
-#
-# 依赖: node, curl；凭证在 ~/.config/ima/{client_id,api_key}
-set -u
+# 安全下载非 M4 模块：固定模块目录、保留远端相对路径、默认仅预览。
+set -euo pipefail
 
-SKILL="${IMA_SKILL_DIR:-/Users/harryji/.claude/skills/ima-skill}"
-export IMA_SKILL_VERSION="${IMA_SKILL_VERSION:-1.1.10}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 CACHE_DIR="$HERE/cache"
+source "$HERE/modules.sh"
+source "$HERE/download_lib.sh"
 
-FID="${1:?需要 folder_id}"
-DEST_IN="${2:?需要目标目录}"
+export IMA_SKILL_VERSION="${IMA_SKILL_VERSION:-1.1.10}"
+export IMA_SKILL_DIR="${IMA_SKILL_DIR:-/Users/harryji/.claude/skills/ima-skill}"
 
-# Parse optional args
-N="100000"
+usage() {
+  cat <<'EOF'
+用法:
+  scripts/ima/kb_download.sh --module <1-9> [--from-cache] [--limit N] [--apply] [--allow-large]
+
+默认只输出下载计划；只有显式传入 --apply 才会下载。
+模块 4 必须使用 kb_download_m4.sh，禁止走通用递归下载。
+EOF
+}
+
+MODULE=""
+LIMIT=100000
 FROM_CACHE=false
-for a in "${@:3}"; do
-  case "$a" in
-    --from-cache) FROM_CACHE=true ;;
-    ''|*[!0-9]*) ;;  # not a number
-    *) N="$a" ;;
+APPLY=false
+ALLOW_LARGE=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --module)
+      [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+      MODULE="$2"; shift 2 ;;
+    --limit)
+      [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+      LIMIT="$2"; shift 2 ;;
+    --from-cache) FROM_CACHE=true; shift ;;
+    --apply) APPLY=true; shift ;;
+    --allow-large) ALLOW_LARGE=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      echo "不再接受手工 folder_id 或目标目录参数: $1" >&2
+      usage >&2
+      exit 2 ;;
   esac
 done
 
-# 相对路径按项目根解析
-case "$DEST_IN" in
-  /*) DEST="$DEST_IN" ;;
-  *)  DEST="$ROOT/$DEST_IN" ;;
-esac
-mkdir -p "$DEST"
+[[ "$MODULE" =~ ^[1-9]$ ]] || { echo "--module 必须是 1-9" >&2; exit 2; }
+[[ "$LIMIT" =~ ^[0-9]+$ ]] || { echo "--limit 必须是非负整数" >&2; exit 2; }
+ima_resolve_module "$MODULE" || { echo "未知模块: $MODULE" >&2; exit 2; }
+if [ "$IMA_MODE" != "recursive" ]; then
+  echo "模块 4 使用专用浅层流程：scripts/ima/kb_download_m4.sh --week MMDD-MMDD" >&2
+  exit 2
+fi
+
+DEST="$ROOT/$IMA_LOCAL_DIR"
+if [ ! -d "$DEST" ]; then
+  echo "规范模块目录不存在，拒绝自动创建: $DEST" >&2
+  exit 2
+fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+CACHE_FILE="$CACHE_DIR/${IMA_FOLDER_ID}.json"
 
-# Step 1: 获取远端清单
-CACHE_FILE="$CACHE_DIR/${FID}.json"
 if $FROM_CACHE; then
-  if [ -f "$CACHE_FILE" ]; then
-    echo ">> 使用缓存: $CACHE_FILE"
-    python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(json.dumps(d['files']))" > "$TMP/remote.json" 2>/dev/null
-    if [ ! -s "$TMP/remote.json" ]; then
-      echo "缓存解析失败，降级为 API walk"
-      FROM_CACHE=false
-    fi
-  else
-    echo "缓存不存在，降级为 API walk"
-    FROM_CACHE=false
-  fi
+  [ -f "$CACHE_FILE" ] || { echo "缓存不存在: $CACHE_FILE" >&2; exit 1; }
+  node -e 'const d=require(process.argv[1]);process.stdout.write(JSON.stringify(d.files))' \
+    "$CACHE_FILE" > "$TMP/remote.json"
+else
+  node "$HERE/kb_walk.cjs" --cache --force "$IMA_FOLDER_ID" > "$TMP/remote.json"
 fi
 
-if ! $FROM_CACHE; then
-  echo ">> 遍历远端 $FID ..."
-  node "$HERE/kb_walk.cjs" --cache "$FID" > "$TMP/remote.json" || {
-    # API 失败 → 尝试缓存回退
-    if [ -f "$CACHE_FILE" ]; then
-      echo ">> API 失败，回退缓存..."
-      python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(json.dumps(d['files']))" > "$TMP/remote.json" 2>/dev/null
-    fi
-    [ -s "$TMP/remote.json" ] || { echo "遍历失败且无缓存可用"; exit 1; }
-  }
+node "$HERE/kb_compare.cjs" "$TMP/remote.json" "$DEST" > "$TMP/plan.json"
+remote_n=$(node -e 'const d=require(process.argv[1]);process.stdout.write(String(d.remote_count))' "$TMP/plan.json")
+local_n=$(node -e 'const d=require(process.argv[1]);process.stdout.write(String(d.local_count))' "$TMP/plan.json")
+missing_n=$(node -e 'const d=require(process.argv[1]);process.stdout.write(String(d.missing_count))' "$TMP/plan.json")
+misplaced_n=$(node -e 'const d=require(process.argv[1]);process.stdout.write(String(d.misplaced_count))' "$TMP/plan.json")
+
+echo "[$IMA_LABEL] 远端 $remote_n | 本地 $local_n | 缺 $missing_n"
+if [ "$misplaced_n" -gt 0 ]; then
+  echo "发现同名文件位于错误相对目录，拒绝下载：" >&2
+  node -e '
+    const d=require(process.argv[1]);
+    for (const x of d.misplaced) {
+      process.stderr.write(`- 应在 ${x.rel_path}\n  实在 ${x.local_candidates.join(", ")}\n`);
+    }
+  ' "$TMP/plan.json"
+  exit 3
 fi
 
-# Step 2: 计算缺失清单(归一化去空格)，输出 title\tmedia_id\tkind
 node -e '
-const fs=require("fs"),path=require("path");
-const dest=process.argv[1];
-const norm=s=>s.replace(/\s+/g,"").replace(/\.pdf$/i,"").toLowerCase();
-const remote=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
-const local=new Set();
-(function w(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){if(e.name.startsWith("."))continue;const p=path.join(d,e.name);if(e.isDirectory())w(p);else local.add(norm(e.name));}})(dest);
-const miss=remote.filter(r=>!local.has(norm(r.title)));
-process.stderr.write(`远端 ${remote.length} | 本地 ${local.size} | 缺 ${miss.length}\n`);
-process.stdout.write(miss.map(r=>r.title+"\t"+r.media_id+"\t"+r.kind+"\n").join(""));
-' "$DEST" "$TMP/remote.json" > "$TMP/missing.tsv"
+  const d=require(process.argv[1]);
+  for (const x of d.missing) process.stdout.write(`- ${x.rel_path}${x.kind === "note" ? " [笔记-不可下]" : ""}\n`);
+' "$TMP/plan.json"
 
-# Step 3: 下载
-SKIPPED_COUNT=0
-i=0; ok=0; fail=0; skip=0
-# sed '$a\' 补末行换行，防止 while read 漏读最后一行
-while IFS=$'\t' read -r title media_id kind; do
-  [ -z "$title" ] && continue
-  i=$((i+1)); [ "$i" -gt "$N" ] && break
-  if [ "$kind" = "note" ]; then
-    echo "[$i] SKIP(笔记,API不可下): $title"; skip=$((skip+1)); i=$((i-1)); continue
-  fi
-  target="$DEST/$title"
-  [ -f "$target" ] && { echo "[$i] EXISTS: $title"; ok=$((ok+1)); continue; }
-  url=$(node "$SKILL/ima_api.cjs" "openapi/wiki/v1/get_media_info" "{\"media_id\":\"$media_id\"}" 2>/dev/null \
-        | node -e 'const d=JSON.parse(require("fs").readFileSync(0,"utf8"));process.stdout.write((d.data&&d.data.url_info&&d.data.url_info.url)||"")')
-  [ -z "$url" ] && { echo "[$i] FAIL(无URL): $title"; fail=$((fail+1)); continue; }
-  tmp="$target.part"
-  curl -sL --fail --max-time 300 -o "$tmp" "$url" 2>/dev/null
-  case "$title" in
-    *.pdf) magic_ok=$([ -s "$tmp" ] && [ "$(head -c 4 "$tmp")" = "%PDF" ] && echo 1 || echo 0) ;;
-    *)     magic_ok=$([ -s "$tmp" ] && echo 1 || echo 0) ;;  # 非pdf仅校验非空
-  esac
-  if [ "$magic_ok" = "1" ]; then
-    mv "$tmp" "$target"; echo "[$i] OK($(du -h "$target"|cut -f1)): $title"; ok=$((ok+1))
-  else
-    rm -f "$tmp"; echo "[$i] FAIL(空/损坏): $title"; fail=$((fail+1))
-  fi
-done < "$TMP/missing.tsv"
+if [ "$missing_n" -eq 0 ]; then
+  echo "无需下载。"
+  exit 0
+fi
+if ! $APPLY; then
+  echo "DRY-RUN：未下载。确认后追加 --apply。"
+  exit 0
+fi
 
-echo "===== 完成: 成功/已存在 $ok, 失败 $fail, 跳过笔记 $skip ====="
+file_missing_n=$(node -e '
+  const d=require(process.argv[1]);
+  process.stdout.write(String(d.missing.filter(x => x.kind !== "note").length));
+' "$TMP/plan.json")
+if [ "$file_missing_n" -gt 10 ] && ! $ALLOW_LARGE; then
+  echo "计划下载 $file_missing_n 个文件，超过安全阈值 10；请先核对，确认后追加 --allow-large。" >&2
+  exit 3
+fi
+
+node -e '
+  const d=require(process.argv[1]);
+  for (const x of d.missing) {
+    if (x.kind === "note") continue;
+    process.stdout.write(`${x.rel_path}\t${x.media_id}\t${x.title}\n`);
+  }
+' "$TMP/plan.json" > "$TMP/download.tsv"
+
+downloaded=0
+while IFS=$'\t' read -r rel_path media_id title; do
+  [ -n "$rel_path" ] || continue
+  [ "$downloaded" -lt "$LIMIT" ] || break
+  target="$DEST/$rel_path"
+  [ ! -e "$target" ] || { echo "目标已存在，停止避免覆盖: $target" >&2; exit 1; }
+  ima_download_one "$media_id" "$title" "$target" "$TMP"
+  downloaded=$((downloaded + 1))
+done < "$TMP/download.tsv"
+
+echo "完成：下载 $downloaded 个文件。"

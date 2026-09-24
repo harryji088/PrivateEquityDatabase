@@ -15,46 +15,34 @@
 ## 用法
 
 ```bash
-# 遍历某文件夹，输出全部文件清单(JSON)
-node scripts/ima/kb_walk.cjs <folder_id>
+# 先比对；默认使用缓存，不下载
+scripts/ima/kb_sync.sh
+scripts/ima/kb_sync.sh --module 6
 
-# 下载某文件夹缺失文件到目标目录(相对项目根)。第3参可限制数量。
-scripts/ima/kb_download.sh <folder_id> "点睛焱究所/<模块目录>" [N]
+# 刷新远端清单；M4 自动改走浅层检查
+scripts/ima/kb_sync.sh --refresh
+
+# 非 M4：先预览，再显式 apply
+scripts/ima/kb_download.sh --module 6 --from-cache
+scripts/ima/kb_download.sh --module 6 --from-cache --apply
+
+# M4：指定新周，先预览，再显式 apply
+scripts/ima/kb_download_m4.sh --week 0921-0925
+scripts/ima/kb_download_m4.sh --week 0921-0925 --apply
 ```
 
-### 各模块 folder_id
-
-| 模块 | folder_id |
-|------|-----------|
-| 1. 尽调报告 | `folder_7352341586014294` |
-| 2. CTA和股票策略周报 | `folder_7352341644738452` |
-| 3. 管理人与策略主题研究 | `folder_7352341971893409` |
-| 4. 周度业绩排名 | `folder_7352341879618812`(子夹:周度`folder_7354341090423503` / 季度半年`folder_7354341044286731`) |
-| 5. 管理人观点速递 | `folder_7352342089331773` |
-| 6. 重点管理人官方介绍材料 | `folder_7353058740684809` |
-| 7. 他山之石 | `folder_7352342164831219` |
-| 8. 管理人直通车 | `folder_7361226648602134` |
-| 9. 基协备案 | `folder_7479537394794106` |
-
-### 示例
-
-```bash
-# 下模块2缺失的 CTA/股票策略周报
-scripts/ima/kb_download.sh folder_7352341644738452 "点睛焱究所/2. CTA和股票策略周报（纯原创）"
-
-# 只下 5 篇试跑
-scripts/ima/kb_download.sh folder_7352341586014294 "点睛焱究所/1. 尽调报告（纯原创）" 5
-```
+模块编号、folder_id 与本地规范目录统一维护在 `modules.sh`。下载脚本不再接受手工目录参数，也不会自动创建模块根目录。
 
 ## 已知坑(都已在脚本里处理)
 
 - **子文件夹**: `media_type === 99`，其 id 在 `media_id` 字段(非 `folder_id`)，递归用它下钻。
 - **分页**: 用 `data.is_end` 判断结束(不是 has_more)，游标 `data.next_cursor`，limit ≤ 50。
-- **比对**: 远端阿尔法周报标题「周报 _」比本地「周报_」多一个空格 → 必须**去空格归一化**再比，否则误判缺失。
-- **末行**: TSV 清单最后一行常无换行符，`while read` 会漏读 → 用 `sed '$a\'` 补。
+- **路径比对**: 以“远端相对路径 + 文件名”比对；只在相同相对目录内做去空格归一化。同名文件位于错误目录时会中止，不再把错位文件当成已存在。
 - **下载**: `get_media_info` 返回的 `data.url_info.url` 已带签名，纯 `curl -sL` 即可，无需附加 headers。签名URL有时效，跨天需重新遍历。
 - **笔记**: `media_type=11`(media_id `note_` 开头)无下载链接；且他人创建的笔记 notes API 报 `210005 not author`，无法导出，只能在 IMA 客户端手动复制。
-- **⚠️ 本地目录名不一致(手动坑)**: `kb_download.sh` 的目标目录不存在时会 `mkdir -p` 新建。各模块本地目录名**数字后空格不统一** —— M3 `3.管理人与策略主题研究`、M5 `5.管理人观点速递`、M6 `6.重点管理人官方介绍材料` **无空格**；M1/M2/M4/M7/M8/M9 **有空格**。传错名字(如 `5. ` 带空格)会**新建一个空目录并把全部文件重下一遍**(2026-08-14 踩过)。下载前务必先 `ls 点睛焱究所/` 核对**精确目录名**。各模块准确目录名见 `点睛.md` 下载状态表 / 本仓库实际目录。
+- **目录安全**: 模块目录只能来自 `modules.sh`；规范目录不存在会立即失败，绝不 `mkdir -p` 一个近似目录。缺失文件超过 10 个时，`--apply` 还需追加 `--allow-large`。
+- **失败即停**: `get_media_info` 的进程错误和业务错误都会显示原始错误码并立即停止，不再吞掉错误后继续消耗配额。
+- **文件签名**: PDF 校验 `%PDF`，xlsx/docx/pptx 校验 `PK`。
 - **限流（两个接口，各有频率 + 日限额两层，都会耗尽）**:
   - `get_knowledge_list`（遍历清单）:
     - 频率限制 `200001`「请求频率超限」：短时密集请求触发，等约 60s 恢复（`kb_walk.cjs` 已内置 5/15/25/35s 退避重试）。

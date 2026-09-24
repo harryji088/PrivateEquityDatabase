@@ -60,7 +60,9 @@ function listFolder(folderId) {
       }
       break; // 其他错误不重试
     }
-    if (!r || r.code !== 0) { console.error('ERR', folderId, r && r.code, r && r.msg); break; }
+    if (!r || r.code !== 0) {
+      throw new Error(`IMA ${r && r.code}: ${(r && r.msg) || 'unknown error'} (${folderId})`);
+    }
     items.push(...(r.data.knowledge_list || []));
     if (r.data.is_end || !r.data.next_cursor) break;
     cursor = r.data.next_cursor;
@@ -104,7 +106,24 @@ if (USE_CACHE) {
 
   // Fetch from API
   process.stderr.write(`>> 遍历远端 ${root} ...\n`);
-  const results = doWalk(root);
+  let results;
+  try {
+    results = doWalk(root);
+  } catch (error) {
+    if (!FORCE && fs.existsSync(cacheFile)) {
+      try {
+        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        process.stderr.write(`(API 失败，回退缓存: ${cached.file_count} files；${error.message})\n`);
+        process.stdout.write(JSON.stringify(cached.files, null, 0));
+        process.exit(0);
+      } catch (cacheError) {
+        // 继续走统一失败出口。
+      }
+    }
+    process.stderr.write(`${error.message}\n`);
+    process.stdout.write('[]');
+    process.exit(1);
+  }
   if (results.length === 0) {
     // API failed → try stale cache as fallback
     if (!FORCE && fs.existsSync(cacheFile)) {
@@ -125,7 +144,7 @@ if (USE_CACHE) {
   const meta = {
     folder_id: root,
     file_count: results.length,
-    cached_at: new Date().toISOString().slice(0, 10),
+    cached_at: new Date().toISOString(),
     files: results,
   };
   fs.writeFileSync(cacheFile, JSON.stringify(meta, null, 2), 'utf8');

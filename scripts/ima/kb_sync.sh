@@ -1,140 +1,114 @@
 #!/usr/bin/env bash
-# kb_sync.sh — 智能同步：缓存优先 walk → 全量比对 → 分批下载
-#
-# 用法:
-#   scripts/ima/kb_sync.sh              仅对比，不下载（dry-run）
-#   scripts/ima/kb_sync.sh --download N  下载最多 N 篇缺失文件
-#   scripts/ima/kb_sync.sh --refresh     强制刷新所有模块的远端清单
-#   scripts/ima/kb_sync.sh --module 6    只看指定模块
-#
-# 策略:
-#   - 优先用本地缓存（<24h），避免消耗 get_knowledge_list 配额
-#   - 缓存命中时 0 API 调用即可完成比对
-#   - 下载走 get_media_info（独立限额 30次/天）
-set -u
+# 安全比对入口：M4 只浅层检查，其余模块按完整相对路径比对。
+set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 CACHE_DIR="$HERE/cache"
-mkdir -p "$CACHE_DIR"
+source "$HERE/modules.sh"
 
 export IMA_SKILL_VERSION="${IMA_SKILL_VERSION:-1.1.10}"
-
-# 模块定义: folder_id|label|local_dir
-MODULES=(
-  "folder_7352341586014294|1. 尽调报告（纯原创）|点睛焱究所/1. 尽调报告（纯原创）"
-  "folder_7352341644738452|2. CTA和股票策略周报（纯原创）|点睛焱究所/2. CTA和股票策略周报（纯原创）"
-  "folder_7352341971893409|3. 管理人与策略主题研究（纯原创）|点睛焱究所/3.管理人与策略主题研究（纯原创）"
-  "folder_7352341879618812|4. 周度业绩排名更新及业绩点评|点睛焱究所/4. 周度业绩排名更新及业绩点评"
-  "folder_7352342089331773|5. 管理人观点速递（信息整理与提炼）|点睛焱究所/5.管理人观点速递（信息整理与提炼）"
-  "folder_7353058740684809|6. 重点管理人官方介绍材料|点睛焱究所/6.重点管理人官方介绍材料"
-  "folder_7352342164831219|7. 他山之石（研报精粹优选&路演分享）|点睛焱究所/7. 他山之石（研报精粹优选&路演分享）"
-  "folder_7361226648602134|8. 管理人直通车|点睛焱究所/8. 管理人直通车"
-  "folder_7479537394794106|9. 基协备案证券私募情况周度更新|点睛焱究所/9. 基协备案证券私募情况周度更新"
-)
+export IMA_SKILL_DIR="${IMA_SKILL_DIR:-/Users/harryji/.claude/skills/ima-skill}"
 
 REFRESH=false
-DOWNLOAD=0
 TARGET_MOD=""
-
-args=(${@:+"$@"})
-for ((idx=0; idx<${#args[@]}; idx++)); do
-  a="${args[idx]}"
-  case "$a" in
-    --refresh) REFRESH=true ;;
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --refresh) REFRESH=true; shift ;;
+    --module) [ "$#" -ge 2 ] || exit 2; TARGET_MOD="$2"; shift 2 ;;
     --download)
-      idx=$((idx+1))
-      nxt="${args[idx]:-0}"
-      [[ "$nxt" =~ ^[0-9]+$ ]] && DOWNLOAD="$nxt"
-      ;;
-    --module)
-      idx=$((idx+1))
-      TARGET_MOD="${args[idx]:-}"
-      ;;
+      echo "--download 已移除；请先 dry-run，再用 kb_download.sh --module N --apply。" >&2
+      exit 2 ;;
+    -h|--help)
+      echo "用法: scripts/ima/kb_sync.sh [--refresh] [--module 1-9]"
+      exit 0 ;;
+    *) echo "未知参数: $1" >&2; exit 2 ;;
   esac
 done
+[ -z "$TARGET_MOD" ] || [[ "$TARGET_MOD" =~ ^[1-9]$ ]] || { echo "--module 必须是 1-9" >&2; exit 2; }
 
-echo "====== 点睛焱究所 智能同步 ======"
-echo "模式: refresh=$REFRESH | download=$DOWNLOAD | module=${TARGET_MOD:-全部}"
+echo "====== 点睛焱究所安全同步 ======"
+echo "模式: refresh=$REFRESH | module=${TARGET_MOD:-全部}"
 echo ""
 
 TOTAL_MISSING=0
+for row in "${IMA_MODULES[@]}"; do
+  IFS='|' read -r module_no fid label local_dir mode <<< "$row"
+  [ -z "$TARGET_MOD" ] || [ "$module_no" = "$TARGET_MOD" ] || continue
+  local_abs="$ROOT/$local_dir"
+  [ -d "$local_abs" ] || { echo "[$label] ❌ 规范目录不存在: $local_abs" >&2; exit 2; }
 
-for def in "${MODULES[@]}"; do
-  IFS='|' read -r fid label local_dir <<< "$def"
-  [ -n "$TARGET_MOD" ] && [[ "$label" != "$TARGET_MOD"* ]] && continue
-
-  CACHE_FILE="$CACHE_DIR/${fid}.json"
-  REMOTE_JSON="$(mktemp)"
-
-  # Get remote list
-  if $REFRESH || [ ! -f "$CACHE_FILE" ]; then
-    echo "  [$label] 🌐 从 API 拉取..."
-    node "$HERE/kb_walk.cjs" --cache "$fid" > "$REMOTE_JSON" 2>/dev/null || true
-    if [ ! -s "$REMOTE_JSON" ] || [ "$(cat "$REMOTE_JSON")" = "[]" ]; then
-      # API 失败 → 回退缓存
-      if [ -f "$CACHE_FILE" ]; then
-        python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(json.dumps(d['files']))" > "$REMOTE_JSON" 2>/dev/null
-        echo "  [$label] ⚠️ API 失败，使用缓存"
-      else
-        echo "  [$label] ❌ 无缓存且 API 不可用"
-        continue
-      fi
+  if [ "$mode" = "m4-shallow" ]; then
+    temp_dir=$(mktemp -d)
+    temp_weeks="$temp_dir/weeks.json"
+    if $REFRESH; then
+      node "$HERE/kb_m4_shallow.cjs" --cache --force > "$temp_weeks"
+    else
+      node "$HERE/kb_m4_shallow.cjs" --cache > "$temp_weeks"
     fi
-  else
-    python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(json.dumps(d['files']))" > "$REMOTE_JSON" 2>/dev/null
-    age=$(python3 -c "import json,datetime; d=json.load(open('$CACHE_FILE')); delta=datetime.date.today()-datetime.date.fromisoformat(d['cached_at']); print(delta.days)" 2>/dev/null)
-    echo "  [$label] 📦 缓存 (${age}d ago)"
+    summary=$(node -e '
+      const fs=require("fs"),path=require("path");
+      const remote=require(process.argv[1]).filter(x=>/^\d{4}-\d{4}$/.test(x.title)).map(x=>x.title).sort();
+      const root=process.argv[2], counts=new Map();
+      function walk(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){if(e.name.startsWith("."))continue;const p=path.join(d,e.name);if(e.isDirectory())walk(p);else{const m=e.name.match(/(\d{4}-\d{4})/);if(m)counts.set(m[1],(counts.get(m[1])||0)+1);}}}
+      walk(root);
+      const localWeeks=[...counts.keys()].sort();
+      const latest=remote.at(-1)||"", localLatest=localWeeks.at(-1)||"";
+      const missing=remote.filter(w=>w>localLatest);
+      const latestCount=counts.get(latest)||0;
+      const partial=latest===localLatest&&latestCount>0&&latestCount<3?[latest]:[];
+      process.stdout.write(JSON.stringify({remote_count:remote.length,latest,local_latest:localLatest,missing,partial}));
+    ' "$temp_weeks" "$local_abs")
+    rm -rf "$temp_dir"
+    latest=$(printf '%s' "$summary" | node -e 'const d=JSON.parse(require("fs").readFileSync(0,"utf8"));process.stdout.write(d.latest)')
+    missing_n=$(printf '%s' "$summary" | node -e 'const d=JSON.parse(require("fs").readFileSync(0,"utf8"));process.stdout.write(String(d.missing.length))')
+    partial_n=$(printf '%s' "$summary" | node -e 'const d=JSON.parse(require("fs").readFileSync(0,"utf8"));process.stdout.write(String(d.partial.length))')
+    if [ "$missing_n" -eq 0 ] && [ "$partial_n" -eq 0 ]; then
+      echo "[$label] ✅ 浅层检查，最新周 ${latest}，无缺周"
+    else
+      echo "[$label] ⚠️ 浅层检查，最新周 ${latest} | 缺周 $missing_n | 不完整周 $partial_n"
+      printf '%s' "$summary" | node -e '
+        const d=JSON.parse(require("fs").readFileSync(0,"utf8"));
+        for(const w of d.missing) console.log(`  - 缺周 ${w}`);
+        for(const w of d.partial) console.log(`  - 不完整周 ${w}`);
+      '
+      TOTAL_MISSING=$((TOTAL_MISSING + missing_n + partial_n))
+    fi
+    echo ""
+    continue
   fi
 
-  # Compare
-  result=$(python3 -c "
-import json, os, re, sys
-def norm(s):
-    return re.sub(r'\s+', '', s).lower()
-remote = json.load(open('$REMOTE_JSON'))
-local_dir = os.path.join('$ROOT', '$local_dir')
-local_set = set()
-if os.path.isdir(local_dir):
-    for root, dirs, files in os.walk(local_dir):
-        for f in files:
-            if not f.startswith('.'):
-                local_set.add(norm(f))
-missing = []
-for item in remote:
-    if norm(item.get('title','')) not in local_set:
-        missing.append(item.get('title','') + '\t' + item.get('media_id','') + '\t' + item.get('kind','file'))
-print(f'{len(remote)}\t{len(local_set)}\t{len(missing)}')
-for m in missing:
-    print(m)
-" 2>/dev/null)
-
-  remote_n=$(echo "$result" | head -1 | cut -f1)
-  local_n=$(echo "$result" | head -1 | cut -f2)
-  miss_n=$(echo "$result" | head -1 | cut -f3)
-
-  if [ "$miss_n" = "0" ]; then
-    echo "  [$label] ✅ $remote_n = $local_n"
+  temp_dir=$(mktemp -d)
+  temp_remote="$temp_dir/remote.json"
+  temp_plan="$temp_dir/plan.json"
+  cache_file="$CACHE_DIR/${fid}.json"
+  if $REFRESH; then
+    node "$HERE/kb_walk.cjs" --cache --force "$fid" > "$temp_remote"
+  elif [ -f "$cache_file" ]; then
+    node -e 'const d=require(process.argv[1]);process.stdout.write(JSON.stringify(d.files))' \
+      "$cache_file" > "$temp_remote"
   else
-    echo "  [$label] ⚠️ 远端 $remote_n | 本地 $local_n | 缺 $miss_n"
-    echo "$result" | tail -n +2 | while IFS=$'\t' read -r title media_id kind; do
-      [ -z "$title" ] && continue
-      tag=""
-      [ "$kind" = "note" ] && tag=" [笔记-不可下]"
-      echo "      - $title$tag"
-    done
-    TOTAL_MISSING=$((TOTAL_MISSING + miss_n))
+    node "$HERE/kb_walk.cjs" --cache "$fid" > "$temp_remote"
   fi
+  node "$HERE/kb_compare.cjs" "$temp_remote" "$local_abs" > "$temp_plan"
+
+  remote_n=$(node -e 'const d=require(process.argv[1]);process.stdout.write(String(d.remote_count))' "$temp_plan")
+  local_n=$(node -e 'const d=require(process.argv[1]);process.stdout.write(String(d.local_count))' "$temp_plan")
+  missing_n=$(node -e 'const d=require(process.argv[1]);process.stdout.write(String(d.missing_count))' "$temp_plan")
+  misplaced_n=$(node -e 'const d=require(process.argv[1]);process.stdout.write(String(d.misplaced_count))' "$temp_plan")
+  if [ "$missing_n" -eq 0 ] && [ "$misplaced_n" -eq 0 ]; then
+    echo "[$label] ✅ 远端 $remote_n | 本地 $local_n | 缺 0"
+  else
+    echo "[$label] ⚠️ 远端 $remote_n | 本地 $local_n | 缺 $missing_n | 错位 $misplaced_n"
+    node -e '
+      const d=require(process.argv[1]);
+      for(const x of d.missing) console.log(`  - ${x.rel_path}${x.kind === "note" ? " [笔记-不可下]" : ""}`);
+      for(const x of d.misplaced) console.log(`    错位候选: ${x.local_candidates.join(", ")}`);
+    ' "$temp_plan"
+    TOTAL_MISSING=$((TOTAL_MISSING + missing_n))
+  fi
+  rm -rf "$temp_dir"
   echo ""
-
-  # Cleanup
-  rm -f "$REMOTE_JSON"
 done
 
-echo "====== 总计缺失: $TOTAL_MISSING 篇 ======"
-
-if [ "$DOWNLOAD" -gt 0 ] && [ "$TOTAL_MISSING" -gt 0 ]; then
-  echo ""
-  echo "⚠️  批量下载功能请使用 kb_download.sh --from-cache"
-  echo "   例: scripts/ima/kb_download.sh folder_7353058740684809 \"点睛焱究所/6.重点管理人官方介绍材料\" $DOWNLOAD --from-cache"
-fi
+echo "====== 总计缺失/不完整: $TOTAL_MISSING 项 ======"
