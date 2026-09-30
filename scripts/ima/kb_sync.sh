@@ -50,7 +50,8 @@ for row in "${IMA_MODULES[@]}"; do
       const fs=require("fs"),path=require("path");
       const remote=require(process.argv[1]).filter(x=>/^\d{4}-\d{4}$/.test(x.title)).map(x=>x.title).sort();
       const root=process.argv[2], counts=new Map();
-      function walk(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){if(e.name.startsWith("."))continue;const p=path.join(d,e.name);if(e.isDirectory())walk(p);else{const m=e.name.match(/(\d{4}-\d{4})/);if(m)counts.set(m[1],(counts.get(m[1])||0)+1);}}}
+      // 只统计 2026/ 子树: 2025 历史周(如 0922-0926)字典序可能大于 2026 当前周,会掩盖真实缺周
+      function walk(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){if(e.name.startsWith("."))continue;if(e.name==="2025")continue;const p=path.join(d,e.name);if(e.isDirectory())walk(p);else{const m=e.name.match(/(\d{4}-\d{4})/);if(m)counts.set(m[1],(counts.get(m[1])||0)+1);}}}
       walk(root);
       const localWeeks=[...counts.keys()].sort();
       const latest=remote.at(-1)||"", localLatest=localWeeks.at(-1)||"";
