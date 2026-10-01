@@ -174,6 +174,8 @@ make check                              # 测试 + Ruff + 本地周报只读校�
 
 建议先执行 `python3 -m venv .venv && .venv/bin/python -m pip install openpyxl PyYAML pytest ruff`。Makefile 会优先使用项目 `.venv`，也可通过 `make test PYTHON=python3` 显式指定解释器。项目最低支持 Python 3.10；CI 同时覆盖 Python 3.10 和 3.13。Ruff 的 `E501`（生成模板长行）和 `E402`（脚本调整项目路径后导入）为显式例外，其余启用 `E/F/I/N/W/UP` 规则。
 
+`make test` 只运行 `backend/` 测试。修改对应模块时，私募净值抓取测试使用 `python3 -m pytest NAV/*/tests`，IMA 同步测试使用 `node --test scripts/ima/tests/*.test.cjs`；它们不访问正式净值库或远端知识库。
+
 ## 看板功能
 
 右上角 **3 个 Tab** 切换视图，所有 Tab 共享同一套 8 板块布局，板块标题和图表数据随 Tab 动态切换：
@@ -234,7 +236,8 @@ make check                              # 测试 + Ruff + 本地周报只读校�
 - `make update-all` 在上述流程后再更新风格缓存并生成周报；`make weekly-report` 前应先执行一次 `make update-style`
 - 周报默认不覆盖同日期历史产物；确认重生成时使用 `cd backend && python3 scripts/generate_weekly_report.py --overwrite`
 - `docs/index.html` 是 GitHub Pages 部署源；`dashboard.html` / `index.html` 为本地生成产物，不入库
-- 页面密码是客户端展示门槛，完整数据仍内嵌在 HTML 中，不能视为服务端访问鉴权；需要保密时应迁移到受控托管环境
+- 页面密码是客户端展示门槛，完整数据仍内嵌在 HTML 中，不能视为服务端访问鉴权
+- 当前明确继续使用 GitHub Pages，不迁移托管；因此接受持有页面文件或链接者可读取内嵌数据
 
 ---
 
