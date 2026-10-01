@@ -76,6 +76,7 @@ def load_observations(
         JOIN funds f ON f.id = wp.fund_id
         JOIN fund_companies fc ON fc.id = f.company_id
         WHERE f.strategy_type IN ({placeholders})
+          AND wp.week_label NOT LIKE 'BASELINE-%'
         ORDER BY wp.record_date, f.strategy_type, fc.name
     """
     try:

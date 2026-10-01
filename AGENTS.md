@@ -46,7 +46,7 @@ cd backend && python3 -m ruff check .
 
 ### 看板主数据通路: SQLite + 自包含 HTML
 
-`cc_data.sqlite3` → `dashboard.html` 是看板的**唯一**数据通路。周度 Excel 的**正本**保存在 `点睛焱究所/4. 周度业绩排名更新及业绩点评/周度业绩/2026/量化股票/`;`backend/scripts/import_weekly_sqlite.py` 的 `DATA_DIR` 指向项目根的 `data/`,但 `data/` 只是**临时导入工作区**(导入完即清理,`data/*.xlsx` 已被 gitignore)——全量重建时需先把正本复制进 `data/` 再导入。独立的 `dashboard.html`(自包含,约 4MB)将所有数据以 `var DATA = {...}` 的 JSON 形式内嵌,并使用 ECharts 5(CDN 加载)渲染图表。无需服务器 —— 直接用浏览器打开 HTML 文件即可。
+`cc_data.sqlite3` → `dashboard.html` 是看板的**唯一**数据通路。周度 Excel 的**正本**保存在 `点睛焱究所/4. 周度业绩排名更新及业绩点评/周度业绩/{年份}/量化股票/`;`backend/scripts/import_weekly_sqlite.py` 的 `DATA_DIR` 指向项目根的 `data/`,但 `data/` 只是**临时增量导入工作区**(`data/*.xlsx` 已被 gitignore)。`--full` 会直接读取正本目录的最新数字年份,无需复制到 `data/`;普通增量导入在 `data/` 为空时也回退到该正本目录。独立的 `dashboard.html` 将所有数据以 `var DATA = {...}` 的 JSON 形式内嵌,并使用 ECharts 5(CDN 加载)渲染图表。无需服务器 —— 直接用浏览器打开 HTML 文件即可。
 
 量化指增周报是独立的只读分析通路：`cc_data.sqlite3 + benchmark_nav.json + style_index_nav.json + config/*.yaml` → `report_facts.json` → Markdown 周报。生成周报不会联网、更新数据库或重建 Dashboard；事实计算与文字渲染必须分离，Markdown 不得重新计算指标。
 

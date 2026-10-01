@@ -5,11 +5,16 @@ Clean rebuild of dashboard.html with absolute + excess return tabs.
 import json
 import os
 import sqlite3
+import tempfile
+from datetime import datetime
+from pathlib import Path
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_PATH = os.path.join(PROJECT_ROOT, "cc_data.sqlite3")
 BENCHMARK_PATH = os.path.join(PROJECT_ROOT, "benchmark_nav.json")
 OUTPUT_PATH = os.path.join(PROJECT_ROOT, "dashboard.html")
+METRICS_JS_PATH = Path(__file__).resolve().parent.parent / "dashboard_metrics.js"
+IMPORT_MANIFEST_PATH = Path(PROJECT_ROOT) / "output" / "import_manifest_latest.json"
 
 def norm_size(sz):
     """Normalize size category: 50-100亿 → 50~100亿"""
@@ -29,7 +34,7 @@ SIZE_ORDER_MAP = {"100亿以上": 0, "50~100亿": 1, "20~50亿": 2, "10~20亿": 
 # navs & excesses, how the weekly table is filtered/ordered, which series
 # drives within-strategy rank, and whether benchmark data is embedded.
 ABS_CFG = {
-    "where_funds": "",
+    "fund_filter_field": None,
     "nav_field": "ytd_return",
     "excess_field": "ytd_excess",
     "weekly_fields": ["weekly_return", "weekly_excess"],
@@ -40,7 +45,7 @@ ABS_CFG = {
     "include_bench": True,
 }
 EXCESS_CFG = {
-    "where_funds": "WHERE wp.ytd_excess IS NOT NULL",
+    "fund_filter_field": "ytd_excess",
     "nav_field": "ytd_excess",
     "excess_field": "ytd_excess",
     "weekly_fields": ["weekly_excess", "ytd_excess"],
@@ -52,7 +57,7 @@ EXCESS_CFG = {
     "include_bench": False,
 }
 EXCESS_DD_CFG = {
-    "where_funds": "WHERE wp.ytd_excess_drawdown IS NOT NULL",
+    "fund_filter_field": "ytd_excess_drawdown",
     "nav_field": "ytd_excess_drawdown",
     "excess_field": "ytd_excess_drawdown",
     "weekly_fields": ["weekly_excess", "ytd_excess_drawdown"],
@@ -82,14 +87,27 @@ def build_data_set(cur, cfg):
         parts = wl.split("-")
         week_info[wl] = (parts[1][:2] + "/" + parts[1][2:]) if len(parts) == 2 else wl
 
-    # Funds matching this dataset's filter
+    # Use each fund's latest observed size explicitly. Historical weekly tables
+    # below continue to use the size recorded in that week.
+    filter_field = cfg["fund_filter_field"]
+    eligibility = ""
+    if filter_field:
+        eligibility = (
+            "WHERE EXISTS (SELECT 1 FROM weekly_performances eligible "
+            f"WHERE eligible.fund_id = f.id AND eligible.{filter_field} IS NOT NULL)"
+        )
     cur.execute(f"""
-        SELECT f.id, f.name, fc.name, f.strategy_type, wp.size_category
-        FROM weekly_performances wp
-        JOIN funds f ON f.id = wp.fund_id
+        SELECT f.id, f.name, fc.name, f.strategy_type, latest.size_category
+        FROM funds f
         JOIN fund_companies fc ON fc.id = f.company_id
-        {cfg["where_funds"]}
-        GROUP BY f.id
+        JOIN weekly_performances latest ON latest.id = (
+            SELECT candidate.id FROM weekly_performances candidate
+            WHERE candidate.fund_id = f.id
+              AND candidate.week_label NOT LIKE 'BASELINE-%'
+            ORDER BY candidate.record_date DESC, candidate.id DESC
+            LIMIT 1
+        )
+        {eligibility}
         ORDER BY f.strategy_type, fc.name
     """)
     all_funds = cur.fetchall()
@@ -166,6 +184,9 @@ def build_data_set(cur, cfg):
     weekly_data = {}
     weekly_cols = ", ".join("wp." + f for f in cfg["weekly_fields"])
     for wl in week_labels:
+        if wl.startswith("BASELINE-"):
+            weekly_data[wl] = []
+            continue
         cur.execute(f"""
             SELECT fc.name, f.strategy_type, wp.size_category, {weekly_cols}
             FROM weekly_performances wp
@@ -195,6 +216,8 @@ def build_data_set(cur, cfg):
         if not strat_indices:
             continue
         for w_idx in range(num_weeks):
+            if week_labels[w_idx].startswith("BASELINE-"):
+                continue
             pairs = [
                 (i, funds_data[i][rank_field][w_idx])
                 for i in strat_indices
@@ -237,6 +260,26 @@ def build_excess_dd_data(cur):
     return build_data_set(cur, EXCESS_DD_CFG)
 
 
+def atomic_write_text(path, content):
+    """Write a generated artifact fully before replacing the visible file."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    handle = tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", prefix=f".{target.name}-",
+        suffix=".tmp", dir=target.parent, delete=False)
+    temp_path = Path(handle.name)
+    try:
+        with handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, target)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
+
+
 def main():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -246,17 +289,44 @@ def main():
     excess_dd_data = build_excess_dd_data(cur)
     conn.close()
 
+    manifest_summary = None
+    if IMPORT_MANIFEST_PATH.exists():
+        manifest = json.loads(IMPORT_MANIFEST_PATH.read_text(encoding="utf-8"))
+        manifest_summary = {
+            "source_dir": manifest.get("source_dir"),
+            "selected_file_count": manifest.get("selected_file_count"),
+            "record_count": manifest.get("record_count"),
+            "record_date_min": manifest.get("record_date_min"),
+            "record_date_max": manifest.get("record_date_max"),
+        }
+    benchmark_coverage = {
+        name: {"first": item["dates"][0], "last": item["dates"][-1]}
+        for name, item in abs_data["benchData"].items()
+    }
+    version_info = {
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "performance_first": abs_data["dates"][0],
+        "performance_last": abs_data["dates"][-1],
+        "benchmark_coverage": benchmark_coverage,
+        "input_manifest": manifest_summary,
+    }
+    for dataset in (abs_data, excess_data, excess_dd_data):
+        dataset["dataVersion"] = version_info
+
     abs_json = json.dumps(abs_data, ensure_ascii=False)
     exc_json = json.dumps(excess_data, ensure_ascii=False)
     dd_json = json.dumps(excess_dd_data, ensure_ascii=False)
+    metrics_js = METRICS_JS_PATH.read_text(encoding="utf-8")
 
     print(f"ABS_DATA: {len(abs_json)} chars, {len(abs_data['funds'])} funds, {len(abs_data['avgNavs'])} strategies")
     print(f"EXCESS_DATA: {len(exc_json)} chars, {len(excess_data['funds'])} funds, {len(excess_data['avgNavs'])} strategies")
     print(f"EXCESS_DD_DATA: {len(dd_json)} chars, {len(excess_dd_data['funds'])} funds, {len(excess_dd_data['avgNavs'])} strategies")
+    print("DATA_VERSION: " + json.dumps(version_info, ensure_ascii=False))
 
     # ── Build HTML ──
     html = f"""<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>量化私募业绩看板</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>{metrics_js}</script>
 <style>
 :root {{
   --bg-deep: #080c12;
@@ -898,7 +968,36 @@ function fundLink(c,s){{return '<span class="fund-link" data-company="'+c+'" dat
 var productChart1=null,productChart2=null,currentPFund=null;
 function showProductDetail(company,strategy){{var f=ABS_DATA.funds.find(function(ff){{return ff.company===company&&ff.strategy===strategy;}});if(!f)return;currentPFund=f;document.getElementById('modalTitle').textContent=f.company+' · '+f.strategy+' · '+f.size;var dates=ABS_DATA.dates,ws=dates.length,selS=document.getElementById('rangeStart'),selE=document.getElementById('rangeEnd');selS.innerHTML='';selE.innerHTML='';dates.forEach(function(d,i){{var opt='<option value="'+i+'">'+d.slice(5)+'</option>';selS.innerHTML+=opt;selE.innerHTML+=opt;}});selS.value=0;selE.value=ws-1;document.getElementById('productModal').classList.add('show');setTimeout(function(){{if(!productChart1){{productChart1=echarts.init(document.getElementById('chartProductNav'));productChart2=echarts.init(document.getElementById('chartProductWeekly'));}}else{{productChart1.resize();productChart2.resize();}}updateProductMetrics();}},50);}}
 function closeProductModal(){{document.getElementById('productModal').classList.remove('show');currentPFund=null;}}
-function updateProductMetrics(){{var f=currentPFund;if(!f)return;var sI=parseInt(document.getElementById('rangeStart').value),eI=parseInt(document.getElementById('rangeEnd').value);if(eI<sI){{var t=sI;sI=eI;eI=t;}}var dates=ABS_DATA.dates.slice(sI,eI+1),wlabs=ABS_DATA.weekLabels.slice(sI,eI+1),navsR=f.navs.slice(sI,eI+1),excsR=f.excesses.slice(sI,eI+1),wData=[];wlabs.forEach(function(w){{var wd=ABS_DATA.weeklyData[w];if(wd){{var e=wd.find(function(r){{return r.company===f.company&&r.strategy===f.strategy;}});if(e)wData.push(e);}}}});var nW=wData.length,allNavs=navsR.filter(function(n){{return n!==null;}}),allExcs=excsR.filter(function(n){{return n!==null;}}),sNav=navsR.find(function(n){{return n!==null;}})||1,eNav=allNavs.length?allNavs[allNavs.length-1]:sNav,totRet=(eNav/sNav-1)*100,annR=(Math.pow(eNav/sNav,52/Math.max(1,nW))-1)*100,sExc=excsR.find(function(n){{return n!==null;}})||0,eExc=allExcs.length?allExcs[allExcs.length-1]:sExc,totExc=(eExc-sExc)*100,wRets=wData.map(function(w){{return w.weekly_return;}});var meanR=nW>0?wRets.reduce(function(a,b){{return a+b;}},0)/nW:0,variance=nW>0?wRets.reduce(function(sum,r){{return sum+Math.pow(r-meanR,2);}},0)/nW:0,annVol=Math.sqrt(Math.max(0,variance)*52)*100,sharpe=annVol>0?(annR/annVol):0,peak=-Infinity,maxDD=0;navsR.forEach(function(n){{if(n===null)return;if(n>peak)peak=n;var dd=(n-peak)/peak;if(dd<maxDD)maxDD=dd;}});var up=wRets.filter(function(r){{return r>0;}}).length,winR=nW>0?(up/nW*100).toFixed(1):'-',wcPct=(maxDD*100).toFixed(2),upCls=totRet>=0?'nav-up':'nav-down',ddCls=maxDD===0?'nav-up':'nav-down';document.getElementById('modalMetrics').innerHTML='<div class="modal-mcard"><div class="mv '+upCls+'">'+(totRet>=0?'+':'')+totRet.toFixed(2)+'%</div><div class="ml">区间累计收益</div></div><div class="modal-mcard"><div class="mv '+upCls+'">'+(annR>=0?'+':'')+annR.toFixed(2)+'%</div><div class="ml">年化收益</div></div><div class="modal-mcard"><div class="mv '+(totExc>=0?'nav-up':'nav-down')+'">'+(totExc>=0?'+':'')+totExc.toFixed(2)+'%</div><div class="ml">累计超额</div></div><div class="modal-mcard"><div class="mv">'+annVol.toFixed(2)+'%</div><div class="ml">年化波动率</div></div><div class="modal-mcard"><div class="mv '+ddCls+'">'+wcPct+'%</div><div class="ml">最大回撤</div></div><div class="modal-mcard"><div class="mv">'+sharpe.toFixed(2)+'</div><div class="ml">Sharpe</div></div><div class="modal-mcard"><div class="mv">'+winR+'%</div><div class="ml">周胜率</div></div><div class="modal-mcard"><div class="mv">'+nW+'</div><div class="ml">数据周数</div></div>';document.getElementById('rangeInfo').textContent=nW+' 周 ('+dates[0]+' ~ '+dates[dates.length-1]+')';var navData=[];navsR.forEach(function(n,i){{if(n!==null)navData.push([dates[i].slice(5),n]);}});var excData=[];excsR.forEach(function(n,i){{if(n!==null)excData.push([dates[i].slice(5),n]);}});var ts=TS[currentTheme]||TS.dark;productChart1.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}}}},legend:{{bottom:0,textStyle:{{color:ts.alc}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}},boundaryGap:false}},yAxis:[{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return v.toFixed(3);}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return(v*100).toFixed(1)+'%';}},color:ts.alc}},splitLine:{{show:false}}}}],series:[{{name:'累计净值',type:'line',data:navData,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{{width:3,color:'#d4a050'}},itemStyle:{{color:'#d4a050'}},tooltip:{{valueFormatter:function(v){{return v!=null?v.toFixed(4):'-';}}}}}},{{name:'超额收益',type:'line',yAxisIndex:1,data:excData,smooth:true,symbol:'diamond',symbolSize:4,lineStyle:{{width:2,color:'#60a5fa',type:'dashed'}},itemStyle:{{color:'#60a5fa'}},tooltip:{{valueFormatter:function(v){{return v!=null?(v*100).toFixed(2)+'%':'-';}}}}}}]}},true);var peakExc=-Infinity,ddData=[];excsR.forEach(function(n,i){{if(n!==null){{if(n>peakExc)peakExc=n;ddData.push([dates[i].slice(5),(n-peakExc)*100]);}}}});try{{var ddGrad=typeof echarts!=='undefined'?new echarts.graphic.LinearGradient(0,0,0,1,[{{offset:0,color:'rgba(231,76,60,0.35)'}},{{offset:1,color:'rgba(231,76,60,0.02)'}}]):'rgba(231,76,60,0.15)';productChart2.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}},valueFormatter:function(v){{return v!=null?v.toFixed(2)+'%':'-';}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}},boundaryGap:false}},yAxis:{{type:'value',max:0,axisLabel:{{formatter:function(v){{return v.toFixed(1)+'%';}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},series:[{{name:'超额回撤',type:'line',data:ddData,smooth:true,symbol:'none',lineStyle:{{width:2,color:'#e74c3c'}},areaStyle:{{color:ddGrad}}}}]}},true);productChart2.resize();}}catch(e){{console.error('productChart2 error:',e);}}}}
+function formatMetricPercent(value,signed){{if(value===null)return '—';var pct=value*100;return(signed&&pct>=0?'+':'')+pct.toFixed(2)+'%';}}
+function formatMetricNumber(value){{return value===null?'—':value.toFixed(2);}}
+function metricClass(value){{return value===null?'':(value>=0?'nav-up':'nav-down');}}
+function metricCard(value,label,formatter,useClass){{var cls=useClass?metricClass(value):'';return '<div class="modal-mcard"><div class="mv '+cls+'">'+formatter(value)+'</div><div class="ml">'+label+'</div></div>';}}
+function updateProductMetrics(){{
+  var f=currentPFund;if(!f)return;
+  var sI=parseInt(document.getElementById('rangeStart').value),eI=parseInt(document.getElementById('rangeEnd').value);
+  if(eI<sI){{var t=sI;sI=eI;eI=t;}}
+  var dates=ABS_DATA.dates.slice(sI,eI+1),statWlabs=ABS_DATA.weekLabels.slice(sI+1,eI+1),navsR=f.navs.slice(sI,eI+1),excsR=f.excesses.slice(sI,eI+1),wData=[];
+  statWlabs.forEach(function(w){{var wd=ABS_DATA.weeklyData[w];if(wd){{var row=wd.find(function(r){{return r.company===f.company&&r.strategy===f.strategy;}});if(row)wData.push(row);}}}});
+  var wRets=wData.map(function(row){{return row.weekly_return;}});
+  var metrics=DashboardMetrics.calculate(navsR,excsR,wRets,dates[0],dates[dates.length-1]);
+  var cards='';
+  cards+=metricCard(metrics.totalReturn,'区间累计收益',function(v){{return formatMetricPercent(v,true);}},true);
+  cards+=metricCard(metrics.annualizedReturn,'年化收益',function(v){{return formatMetricPercent(v,true);}},true);
+  cards+=metricCard(metrics.excessReturn,'区间超额',function(v){{return formatMetricPercent(v,true);}},true);
+  cards+=metricCard(metrics.annualizedVolatility,'年化波动率',function(v){{return formatMetricPercent(v,false);}},false);
+  cards+=metricCard(metrics.maxDrawdown,'最大回撤',function(v){{return formatMetricPercent(v,false);}},true);
+  cards+=metricCard(metrics.sharpe,'Sharpe',formatMetricNumber,false);
+  cards+=metricCard(metrics.winRate,'周胜率',function(v){{return formatMetricPercent(v,false);}},false);
+  cards+='<div class="modal-mcard"><div class="mv">'+metrics.weekCount+'</div><div class="ml">数据周数</div></div>';
+  document.getElementById('modalMetrics').innerHTML=cards;
+  document.getElementById('rangeInfo').textContent=metrics.weekCount+' 周 ('+dates[0]+' ~ '+dates[dates.length-1]+')';
+  var navData=[];navsR.forEach(function(n,i){{if(n!==null)navData.push([dates[i].slice(5),n]);}});
+  var excData=[];excsR.forEach(function(n,i){{if(n!==null)excData.push([dates[i].slice(5),n]);}});
+  var ts=TS[currentTheme]||TS.dark;
+  productChart1.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}}}},legend:{{bottom:0,textStyle:{{color:ts.alc}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}},boundaryGap:false}},yAxis:[{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return v.toFixed(3);}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},{{type:'value',scale:true,axisLabel:{{formatter:function(v){{return(v*100).toFixed(1)+'%';}},color:ts.alc}},splitLine:{{show:false}}}}],series:[{{name:'累计净值',type:'line',data:navData,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{{width:3,color:'#d4a050'}},itemStyle:{{color:'#d4a050'}},tooltip:{{valueFormatter:function(v){{return v!=null?v.toFixed(4):'-';}}}}}},{{name:'超额收益',type:'line',yAxisIndex:1,data:excData,smooth:true,symbol:'diamond',symbolSize:4,lineStyle:{{width:2,color:'#60a5fa',type:'dashed'}},itemStyle:{{color:'#60a5fa'}},tooltip:{{valueFormatter:function(v){{return v!=null?(v*100).toFixed(2)+'%':'-';}}}}}}]}},true);
+  var ddData=DashboardMetrics.excessDrawdownSeries(excsR,dates);
+  try{{var ddGrad=typeof echarts!=='undefined'?new echarts.graphic.LinearGradient(0,0,0,1,[{{offset:0,color:'rgba(231,76,60,0.35)'}},{{offset:1,color:'rgba(231,76,60,0.02)'}}]):'rgba(231,76,60,0.15)';productChart2.setOption({{backgroundColor:'transparent',tooltip:{{trigger:'axis',backgroundColor:ts.tbg,borderColor:ts.tbc,textStyle:{{color:ts.ttc}},valueFormatter:function(v){{return v!=null?v.toFixed(2)+'%':'-';}}}},grid:{{left:60,right:30,top:20,bottom:40}},xAxis:{{type:'category',data:dates.map(function(d){{return d.slice(5);}}),axisLabel:{{rotate:45,fontSize:10,color:ts.alc}},axisLine:{{lineStyle:{{color:ts.slc}}}},boundaryGap:false}},yAxis:{{type:'value',max:0,axisLabel:{{formatter:function(v){{return v.toFixed(1)+'%';}},color:ts.alc}},splitLine:{{lineStyle:{{color:ts.slc}}}}}},series:[{{name:'超额回撤',type:'line',data:ddData,smooth:true,symbol:'none',lineStyle:{{width:2,color:'#e74c3c'}},areaStyle:{{color:ddGrad}}}}]}},true);productChart2.resize();}}catch(e){{console.error('productChart2 error:',e);}}
+}}
 document.addEventListener('click',function(e){{if(e.target.id==='productModal')closeProductModal();var el=e.target.closest('.fund-link');if(el)showProductDetail(el.getAttribute('data-company'),el.getAttribute('data-strategy'));}});
 // resize: single global listener (registered once at top)
 async function checkPw(){{const i=document.getElementById('pwInput');const e=document.getElementById('pwErr');const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(i.value));const hex=Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');if(hex==='5856077678deae2bfae7a71271e97bb24337ca249bba1175fe1fa36a30d529e4'){{sessionStorage.setItem('cc_auth','1');document.getElementById('pwOverlay').classList.add('hide');document.getElementById('app').style.display='';setTimeout(function(){{cS&&cS.resize();cG&&cG.resize();cF&&cF.resize();}},100)}}else{{e.textContent='密码错误';document.querySelector('.pw-card').classList.add('shake');setTimeout(function(){{document.querySelector('.pw-card').classList.remove('shake')}},400);i.value=''}}}}document.addEventListener('DOMContentLoaded',function(){{if(sessionStorage.getItem('cc_auth')){{document.getElementById('pwOverlay').classList.add('hide');document.getElementById('app').style.display='';setTimeout(function(){{cS&&cS.resize();cG&&cG.resize();cF&&cF.resize();}},100)}}else{{document.getElementById('pwInput').focus()}}document.getElementById('pwInput').addEventListener('keydown',function(ev){{if(ev.key==='Enter')checkPw()}})}})
@@ -924,22 +1023,18 @@ async function checkPw(){{const i=document.getElementById('pwInput');const e=doc
 </div>
 </body></html>"""
 
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        f.write(html)
+    atomic_write_text(OUTPUT_PATH, html)
 
     print(f"\nWritten {OUTPUT_PATH}: {len(html)} chars")
 
     # Also sync index.html for local opening
     index_path = OUTPUT_PATH.replace("dashboard.html", "index.html")
-    with open(index_path, "w", encoding="utf-8") as f:
-        f.write(html)
+    atomic_write_text(index_path, html)
     print(f"Synced {index_path}: {len(html)} chars")
 
     # Also sync docs/index.html for GitHub Pages deployment
     docs_path = os.path.join(PROJECT_ROOT, "docs", "index.html")
-    os.makedirs(os.path.dirname(docs_path), exist_ok=True)
-    with open(docs_path, "w", encoding="utf-8") as f:
-        f.write(html)
+    atomic_write_text(docs_path, html)
     print(f"Synced {docs_path}: {len(html)} chars")
 
     # Ensure .nojekyll exists so GitHub Pages serves raw HTML (not Jekyll-processed)

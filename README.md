@@ -6,10 +6,10 @@
 
 | 指标 | 数值 |
 |------|------|
-| 基金公司 | 145 家 |
-| 基金产品 | 396 只 |
+| 基金公司 | 146 家 |
+| 基金产品 | 397 只 |
 | 策略类型 | 7 种 |
-| 覆盖周数 | 35 周（2026/01/09 – 2026/09/11）|
+| 覆盖周数 | 37 周（2026/01/09 – 2026/09/24）|
 | 基准指数 | 6 条（沪深300、中证500、中证800、中证1000、中证2000、A500）|
 | V2A 风格指数 | 12 条日线、10 个风格代理 |
 
@@ -55,9 +55,13 @@ QuantFundDatabase/
 
 ```bash
 cd backend && python3 scripts/import_weekly_sqlite.py
+# 安全全量重建：直接读取最新年度正本，无需复制到 data/
+cd backend && python3 scripts/import_weekly_sqlite.py --full
 ```
 
-解析 `data/` 下的 Excel 周报（正本在 `点睛焱究所/4. 周度业绩排名更新及业绩点评/周度业绩/2026/量化股票/`，当前覆盖 0105–0911；导入前需复制进 `data/`），每个文件含 7 个策略 sheet，列布局因周次略有差异（14–17 列）。脚本自动识别列名，统一入库到 SQLite。
+增量导入优先解析 `data/` 下的 Excel 周报；`data/` 为空时自动读取正本目录的最新数字年份。`--full` 始终直接读取 `点睛焱究所/4. 周度业绩排名更新及业绩点评/周度业绩/{最新年份}/量化股票/`，无需复制正本。每个文件必须包含 7 个策略 sheet 和必需字段。
+
+导入前会生成文件 SHA-256 清单并检查周标签、同周重复版本、年度、策略和表头。同周内容完全相同的副本自动去重；内容不同则停止。导入在同目录临时 SQLite 中完成，完整性与外键检查通过后备份旧库并原子替换。输入清单写入 `output/import_manifest_latest.json`，数据库备份写入 `backups/database/`。
 
 **入库字段：**
 
@@ -81,14 +85,16 @@ cd backend && python3 scripts/import_weekly_sqlite.py
 ```
 Excel 原始数据
   ↓
-1. 市场中性填充: weekly_excess = weekly_return, ytd_excess = ytd_return
+1. 插入上年末基线: ytd_return = 0, ytd_excess = 0，周收益留空
+  ↓
+2. 市场中性填充: weekly_excess = weekly_return, ytd_excess = ytd_return
     （基准=0，超额=绝对收益）
   ↓
-2. 量化选股超额: 以中证1000为基准计算 weekly_excess 和 ytd_excess
+3. 量化选股超额: 以中证1000为基准计算 weekly_excess 和 ytd_excess
     weekly_excess = (1 + fund_return) / (1 + benchmark_return) − 1
     ytd_excess    = (1 + fund_ytd_return) / (1 + benchmark_ytd_return) − 1
   ↓
-3. 全策略超额回撤: 从 ytd_excess 统一计算 ytd_excess_drawdown
+4. 全策略超额回撤: 从年初 1.0 基线起统一计算 ytd_excess_drawdown
     excess_nav  = 1.0 + ytd_excess
     peak        = max(excess_nav[0..i])
     drawdown    = (excess_nav − peak) / peak   （≤0，0=在峰值）
@@ -121,7 +127,7 @@ cd backend && python3 scripts/rebuild_dashboard.py
 
 每个对象包含：基金列表（含 NAV 序列和超额序列）、策略均值、周度排名数据、基准指数日频数据。
 
-看板文件自包含（~3.7MB），无需服务器，浏览器直接打开即可。
+看板文件自包含（当前约 5MB；ECharts 仍从 CDN 加载），浏览器直接打开即可。
 
 ### 4. 更新 V2A 风格指数缓存
 
@@ -162,10 +168,11 @@ V1 报告时区固定为 `Asia/Shanghai`，`recent_windows` 必须包含 4 周�
 ```bash
 make update-all                         # 看板数据 → V2A 风格缓存 → 周报
 make test                               # 后端全量测试
-cd backend && python3 -m ruff check .  # Ruff 静态检查
+make lint                               # Ruff 静态检查
+make check                              # 测试 + Ruff + 本地周报只读校验
 ```
 
-项目最低支持 Python 3.10；当前本机验证环境为 Python 3.13。Ruff 的 `E501`（生成模板长行）和 `E402`（脚本调整项目路径后导入）为显式例外，其余启用 `E/F/I/N/W/UP` 规则。
+建议先执行 `python3 -m venv .venv && .venv/bin/python -m pip install openpyxl PyYAML pytest ruff`。Makefile 会优先使用项目 `.venv`，也可通过 `make test PYTHON=python3` 显式指定解释器。项目最低支持 Python 3.10；CI 同时覆盖 Python 3.10 和 3.13。Ruff 的 `E501`（生成模板长行）和 `E402`（脚本调整项目路径后导入）为显式例外，其余启用 `E/F/I/N/W/UP` 规则。
 
 ## 看板功能
 
@@ -186,14 +193,14 @@ cd backend && python3 -m ruff check .  # Ruff 静态检查
 
 单击任意基金名即可弹出详情窗口，包含：
 
-- **8 个指标卡**：区间累计收益、年化收益、累计超额、年化波动率、最大回撤、Sharpe、周胜率、数据周数
+- **8 个指标卡**：区间累计收益、年化收益、区间超额、年化波动率、最大回撤、Sharpe、周胜率、数据周数
 - **时间范围选择器**：可自定义起止周，指标和图表联动更新
 - **左图 — 累计净值 + 超额收益**（双 Y 轴线图）
   - 金色实线：`nav = 1.0 + ytd_return`（左轴，净值）
   - 蓝色虚线：`ytd_excess`（右轴，%）
   - Tooltip：净值显示 4 位小数，超额显示百分比
 - **右图 — 超额回撤曲线**（红色渐变面积图）
-  - 算法：`drawdown = ytd_excess - running_peak(ytd_excess)`，Y 轴 `max=0`
+  - 算法：`drawdown = (1 + ytd_excess) / running_peak(1 + ytd_excess) - 1`，Y 轴 `max=0`
   - 0 线在顶部，曲线向下=回撤加深，红色区域越深=回撤越大
 - **独立于 Tab**：始终使用绝对收益数据（`ABS_DATA`），三个 Tab 打开同一产品内容一致
 - 支持窗口 resize、暗色/亮色主题
@@ -218,7 +225,7 @@ cd backend && python3 -m ruff check .  # Ruff 静态检查
 | 图表 | ECharts 5 (CDN)，含 LinearGradient 面积图 |
 | 样式 | CSS 自定义属性，暗色/亮色双主题 |
 | 数据存储 | SQLite（cc_data.sqlite3），JSON（benchmark_nav.json、style_index_nav.json）|
-| 部署形态 | 单文件 HTML（~3.7MB），零依赖浏览器打开 |
+| 部署形态 | 单文件 HTML（当前约 5MB，图表库走 CDN）|
 
 ## 维护说明
 
@@ -227,6 +234,7 @@ cd backend && python3 -m ruff check .  # Ruff 静态检查
 - `make update-all` 在上述流程后再更新风格缓存并生成周报；`make weekly-report` 前应先执行一次 `make update-style`
 - 周报默认不覆盖同日期历史产物；确认重生成时使用 `cd backend && python3 scripts/generate_weekly_report.py --overwrite`
 - `docs/index.html` 是 GitHub Pages 部署源；`dashboard.html` / `index.html` 为本地生成产物，不入库
+- 页面密码是客户端展示门槛，完整数据仍内嵌在 HTML 中，不能视为服务端访问鉴权；需要保密时应迁移到受控托管环境
 
 ---
 

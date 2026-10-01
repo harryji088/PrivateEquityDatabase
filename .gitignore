@@ -49,6 +49,15 @@ data/~$*
 # Temp analysis output
 output/
 
+# Private NAV operational data and generated backups
+Private_NAV/*.xlsx
+Private_NAV/inbox/
+Private_NAV/output/
+Private_NAV/backups/
+
+# Vendor sample environments are machine-local and may contain credentials
+NAV/**/fresh_env/
+
 # Local research materials (not for GitHub)
 点睛焱究所/
 市场报告/

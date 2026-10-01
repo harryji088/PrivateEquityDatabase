@@ -6,11 +6,14 @@ Usage:
     python scripts/import_weekly_sqlite.py
 """
 
+import argparse
 import csv
+import hashlib
+import json
 import os
 import re
 import sqlite3
-import sys
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
@@ -19,6 +22,12 @@ import openpyxl
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 DB_PATH = DATA_DIR.parent / "cc_data.sqlite3"
 CSV_OUTPUT = DATA_DIR.parent / "merged_weekly_returns.csv"
+DB_BACKUP_DIR = DATA_DIR.parent / "backups" / "database"
+IMPORT_MANIFEST_PATH = DATA_DIR.parent / "output" / "import_manifest_latest.json"
+CANONICAL_SOURCE_ROOT = (
+    DATA_DIR.parent / "点睛焱究所" / "4. 周度业绩排名更新及业绩点评" / "周度业绩"
+)
+BASELINE_PREFIX = "BASELINE-"
 
 STRATEGY_MAP = {
     "量化选股": "stock_long",
@@ -87,21 +96,156 @@ def create_schema(conn):
     conn.commit()
 
 
-def parse_all_files():
-    """Parse all weekly Excel files."""
-    files = sorted([
-        f for f in os.listdir(DATA_DIR)
-        if f.endswith('.xlsx') and '点睛业绩放送' in f and not f.startswith('~$')
-    ])
+def validate_import_records(all_records):
+    """Reject an empty or internally inconsistent import before touching a database."""
+    if not all_records:
+        raise ValueError(f"No weekly performance records found in {DATA_DIR}")
 
+    record_dates = {rec[3] for rec in all_records}
+    years = {item[:4] for item in record_dates}
+    if len(years) != 1:
+        raise ValueError(
+            "A single import may contain only one calendar year; found {}".format(
+                ", ".join(sorted(years))))
+    strategies = {rec[1] for rec in all_records}
+    missing_strategies = sorted(set(STRATEGY_MAP.values()) - strategies)
+    if missing_strategies:
+        raise ValueError(
+            "Import is missing required strategies: {}".format(
+                ", ".join(missing_strategies)))
+
+
+def insert_year_start_baselines(conn, cur):
+    """Insert a 1.0 year-start anchor without creating a synthetic weekly return."""
+    years = [
+        row[0] for row in cur.execute(
+            "SELECT DISTINCT substr(record_date, 1, 4) FROM weekly_performances "
+            "WHERE week_label NOT LIKE ? ORDER BY 1",
+            (f"{BASELINE_PREFIX}%",),
+        ).fetchall()
+    ]
+    if not years:
+        return 0
+    if len(years) != 1:
+        raise ValueError(
+            "Cannot create a year-start baseline for mixed years: {}".format(
+                ", ".join(years)))
+
+    year = int(years[0])
+    baseline_date = f"{year - 1}-12-31"
+    week_label = f"{BASELINE_PREFIX}{year}"
+    cur.execute("""
+        INSERT OR IGNORE INTO weekly_performances (
+            fund_id, week_label, record_date, weekly_return, weekly_excess,
+            ytd_return, ytd_excess, ytd_drawdown, ytd_excess_drawdown,
+            size_category
+        )
+        SELECT f.id, ?, ?, NULL, NULL, 0.0, 0.0, 0.0, 0.0, NULL
+        FROM funds f
+        WHERE EXISTS (
+            SELECT 1 FROM weekly_performances wp
+            WHERE wp.fund_id = f.id AND substr(wp.record_date, 1, 4) = ?
+        )
+    """, (week_label, baseline_date, str(year)))
+    inserted = cur.rowcount
+    conn.commit()
+    print(f"  Inserted {inserted} year-start baseline records ({baseline_date})")
+    return inserted
+
+
+def default_canonical_source_dir():
+    """Return the newest numeric year directory containing quant weekly files."""
+    candidates = [
+        path / "量化股票" for path in CANONICAL_SOURCE_ROOT.iterdir()
+        if path.is_dir() and path.name.isdigit() and (path / "量化股票").is_dir()
+    ] if CANONICAL_SOURCE_ROOT.is_dir() else []
+    if not candidates:
+        raise ValueError(f"No canonical quant weekly source found under {CANONICAL_SOURCE_ROOT}")
+    return max(candidates, key=lambda path: int(path.parent.name))
+
+
+def discover_source_files(source_dir):
+    """Select one verified workbook per week and describe the exact inputs."""
+    source_dir = Path(source_dir)
+    files = sorted(
+        path for path in source_dir.glob("*.xlsx")
+        if "点睛业绩放送" in path.name and not path.name.startswith("~$")
+    )
+    if not files:
+        raise ValueError(f"No weekly Excel files found in {source_dir}")
+
+    grouped = {}
+    file_info = {}
+    for path in files:
+        match = re.search(r"[（(](\d{4})-(\d{4})[）)]", path.name)
+        if not match:
+            raise ValueError(f"Cannot parse week label from {path.name}")
+        week_label = f"{match.group(1)}-{match.group(2)}"
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        grouped.setdefault(week_label, []).append(path)
+        file_info[path] = {"name": path.name, "sha256": digest, "week_label": week_label}
+
+    selected = []
+    duplicates = []
+    for week_label, paths in sorted(grouped.items()):
+        hashes = {file_info[path]["sha256"] for path in paths}
+        if len(hashes) > 1:
+            raise ValueError(
+                f"Conflicting workbooks found for {week_label}: "
+                + ", ".join(path.name for path in paths))
+        selected.append(paths[0])
+        if len(paths) > 1:
+            duplicates.append({
+                "week_label": week_label,
+                "selected": paths[0].name,
+                "identical_copies": [path.name for path in paths[1:]],
+            })
+
+    manifest = {
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "source_dir": str(source_dir.resolve()),
+        "selected_file_count": len(selected),
+        "week_count": len(grouped),
+        "files": [file_info[path] for path in selected],
+        "duplicates": duplicates,
+    }
+    return selected, manifest
+
+
+def write_import_manifest(manifest, all_records):
+    record_dates = sorted({rec[3] for rec in all_records})
+    manifest = dict(manifest)
+    manifest["record_count"] = len(all_records)
+    manifest["record_date_min"] = record_dates[0]
+    manifest["record_date_max"] = record_dates[-1]
+    IMPORT_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    handle = tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", prefix=".import_manifest-", suffix=".json",
+        dir=IMPORT_MANIFEST_PATH.parent, delete=False)
+    temp_path = Path(handle.name)
+    try:
+        with handle:
+            json.dump(manifest, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, IMPORT_MANIFEST_PATH)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
+    return manifest
+
+
+def parse_all_files(files):
+    """Parse all weekly Excel files."""
     all_records = []
     company_set = {}      # name -> size_category
     fund_set = {}         # (company_name, strategy) -> None
 
     print(f"Parsing {len(files)} weekly files...")
 
-    for fname in files:
-        fpath = DATA_DIR / fname
+    for fpath in files:
+        fname = fpath.name
         wb = openpyxl.load_workbook(fpath, read_only=True, data_only=True)
 
         # Extract week label from filename (handles mixed Chinese/ASCII parens)
@@ -114,7 +258,8 @@ def parse_all_files():
 
         for sheet_name, strategy_key in STRATEGY_MAP.items():
             if sheet_name not in wb.sheetnames:
-                continue
+                wb.close()
+                raise ValueError(f"{fname}: missing required sheet {sheet_name}")
 
             ws = wb[sheet_name]
 
@@ -125,7 +270,8 @@ def parse_all_files():
                     header_row = row
                     break
             if not header_row:
-                continue
+                wb.close()
+                raise ValueError(f"{fname}/{sheet_name}: header row not found")
 
             headers = [str(h) if h else '' for h in header_row]
             col_map = {}
@@ -159,6 +305,14 @@ def parse_all_files():
                     col_map['max_drawdown'] = i
                 elif '成立以来夏普比率' in h or '夏普比率' in h:
                     col_map['sharpe'] = i
+
+            required_columns = {"rank", "company", "date", "weekly_return", "ytd_return"}
+            missing_columns = sorted(required_columns - set(col_map))
+            if missing_columns:
+                wb.close()
+                raise ValueError(
+                    f"{fname}/{sheet_name}: missing required columns "
+                    + ", ".join(missing_columns))
 
             for row in ws.iter_rows(min_row=4, values_only=True):
                 rank_val = row[col_map.get('rank', 1)] if len(row) > col_map.get('rank', 1) else None
@@ -332,6 +486,10 @@ def import_to_db(conn, all_records, company_set, fund_set):
     conn.commit()
     if cur.rowcount > 0:
         print(f"  Filled excess for {cur.rowcount} market neutral records (benchmark=0)")
+
+    # Anchor every YTD series at the previous calendar year-end. The baseline
+    # carries no weekly return and is excluded from weekly/report statistics.
+    insert_year_start_baselines(conn, cur)
 
     # Compute excess for 量化选股 using 中证1000 as benchmark
     compute_stock_long_excess(conn, cur)
@@ -514,6 +672,7 @@ def build_time_series(conn):
     # Get all weeks
     cur.execute("""
         SELECT DISTINCT week_label FROM weekly_performances
+        WHERE week_label NOT LIKE 'BASELINE-%'
         ORDER BY week_label
     """)
     week_labels = [r[0] for r in cur.fetchall()]
@@ -538,6 +697,7 @@ def build_time_series(conn):
             COUNT(DISTINCT wp.week_label || '-' || CAST(wp.fund_id AS TEXT)) as checksum
         FROM weekly_performances wp
         JOIN funds f ON f.id = wp.fund_id
+        WHERE wp.week_label NOT LIKE 'BASELINE-%'
         GROUP BY f.strategy_type
         ORDER BY fund_count DESC
     """)
@@ -562,6 +722,7 @@ def build_time_series(conn):
         FROM weekly_performances wp
         JOIN funds f ON f.id = wp.fund_id
         JOIN fund_companies fc ON fc.id = f.company_id
+        WHERE wp.week_label NOT LIKE 'BASELINE-%'
         GROUP BY f.id
         ORDER BY wks DESC, avg_ret DESC
         LIMIT 25
@@ -585,6 +746,7 @@ def build_time_series(conn):
         JOIN funds f ON f.id = wp.fund_id
         JOIN fund_companies fc ON fc.id = f.company_id
         WHERE f.strategy_type = 'stock_long'
+          AND wp.week_label NOT LIKE 'BASELINE-%'
         GROUP BY f.id
         ORDER BY COUNT(DISTINCT wp.week_label) DESC
         LIMIT 8
@@ -626,6 +788,7 @@ def build_time_series(conn):
         JOIN funds f ON f.id = wp.fund_id
         JOIN fund_companies fc ON fc.id = f.company_id
         WHERE f.strategy_type = 'market_neutral'
+          AND wp.week_label NOT LIKE 'BASELINE-%'
         GROUP BY f.id
         ORDER BY COUNT(DISTINCT wp.week_label) DESC
         LIMIT 8
@@ -662,6 +825,7 @@ def build_time_series(conn):
         FROM weekly_performances wp
         JOIN funds f ON f.id = wp.fund_id
         JOIN fund_companies fc ON fc.id = f.company_id
+        WHERE wp.week_label NOT LIKE 'BASELINE-%'
         ORDER BY f.strategy_type, f.name, wp.record_date
     """)
 
@@ -680,8 +844,93 @@ def build_time_series(conn):
     print(f"  {row_count} rows exported")
 
 
-def main():
-    full_rebuild = "--full" in sys.argv or "--rebuild" in sys.argv
+def validate_database(conn):
+    """Run the checks required before a staged database can be published."""
+    integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
+    if integrity != "ok":
+        raise RuntimeError(f"SQLite integrity check failed: {integrity}")
+    foreign_key_errors = conn.execute("PRAGMA foreign_key_check").fetchall()
+    if foreign_key_errors:
+        raise RuntimeError(
+            f"SQLite foreign key check failed: {foreign_key_errors[:5]}")
+    if conn.execute("SELECT COUNT(*) FROM weekly_performances").fetchone()[0] == 0:
+        raise RuntimeError("Staged database contains no weekly performance records")
+
+
+def create_staging_database(full_rebuild):
+    """Create a same-filesystem database that can be atomically published."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    handle = tempfile.NamedTemporaryFile(
+        prefix=f".{DB_PATH.stem}-", suffix=".sqlite3", dir=DB_PATH.parent, delete=False)
+    stage_path = Path(handle.name)
+    handle.close()
+
+    stage_conn = sqlite3.connect(str(stage_path))
+    stage_conn.execute("PRAGMA foreign_keys=ON")
+    if not full_rebuild and DB_PATH.exists():
+        source_conn = sqlite3.connect(str(DB_PATH))
+        try:
+            source_conn.backup(stage_conn)
+        finally:
+            source_conn.close()
+    stage_conn.execute("PRAGMA journal_mode=WAL")
+    return stage_path, stage_conn
+
+
+def publish_database(stage_path):
+    """Keep a consistent backup, then atomically replace the production DB."""
+    backup_path = None
+    if DB_PATH.exists():
+        DB_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        backup_path = DB_BACKUP_DIR / f"cc_data_{stamp}.sqlite3"
+        source_conn = sqlite3.connect(str(DB_PATH))
+        backup_conn = sqlite3.connect(str(backup_path))
+        try:
+            checkpoint = source_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if checkpoint and checkpoint[0] != 0:
+                raise RuntimeError(
+                    "Production database is busy; refusing to replace it while WAL is active")
+            source_conn.backup(backup_conn)
+        finally:
+            backup_conn.close()
+            source_conn.close()
+
+    # A staged DB is switched to DELETE mode before this call. Remaining old
+    # sidecars indicate that another process still has the production DB open;
+    # replacing it in that state would make the visible database ambiguous.
+    for suffix in ("-wal", "-shm"):
+        sidecar = Path(f"{DB_PATH}{suffix}")
+        if sidecar.exists():
+            raise RuntimeError(
+                f"Production database is still in use ({sidecar.name}); publish aborted")
+    os.replace(stage_path, DB_PATH)
+    return backup_path
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Import weekly quant performance into SQLite")
+    parser.add_argument("--full", "--rebuild", action="store_true", dest="full_rebuild")
+    parser.add_argument(
+        "--source-dir", type=Path,
+        help="Excel directory; full rebuild defaults to the newest canonical year, "
+             "incremental import defaults to data/",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    full_rebuild = args.full_rebuild
+    source_dir = args.source_dir
+    if source_dir is None:
+        staged_files = list(DATA_DIR.glob("*点睛业绩放送*.xlsx"))
+        source_dir = (
+            default_canonical_source_dir()
+            if full_rebuild or not staged_files
+            else DATA_DIR
+        )
+    source_dir = source_dir.resolve()
 
     print("=" * 60)
     print("  量化私募周度业绩数据导入工具")
@@ -691,30 +940,31 @@ def main():
         print("  Mode: INCREMENTAL (use --full to force rebuild)")
     print("=" * 60)
 
-    if full_rebuild and DB_PATH.exists():
-        DB_PATH.unlink()
-        print(f"Removed old database: {DB_PATH}")
-
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-
-    # Create schema (no-op if tables already exist)
-    create_schema(conn)
-
     # Check existing weeks before import (for incremental reporting)
     existing_weeks = set()
-    if not full_rebuild:
-        cur = conn.cursor()
+    if not full_rebuild and DB_PATH.exists():
+        existing_conn = sqlite3.connect(str(DB_PATH))
         try:
-            cur.execute("SELECT DISTINCT week_label FROM weekly_performances")
-            existing_weeks = {r[0] for r in cur.fetchall()}
+            rows = existing_conn.execute(
+                "SELECT DISTINCT week_label FROM weekly_performances "
+                "WHERE week_label NOT LIKE 'BASELINE-%'")
+            existing_weeks = {r[0] for r in rows.fetchall()}
         except sqlite3.OperationalError:
             pass  # table doesn't exist yet (first run)
+        finally:
+            existing_conn.close()
 
-    # Parse all Excel files
-    print(f"\nSource directory: {DATA_DIR}")
-    all_records, company_set, fund_set = parse_all_files()
+    # Parse and validate every input before creating or replacing a database.
+    print(f"\nSource directory: {source_dir}")
+    source_files, manifest = discover_source_files(source_dir)
+    all_records, company_set, fund_set = parse_all_files(source_files)
+    validate_import_records(all_records)
+    manifest = write_import_manifest(manifest, all_records)
+    print(
+        "  Input manifest: {} selected files, {} identical duplicate(s), {} to {}".format(
+            manifest["selected_file_count"], len(manifest["duplicates"]),
+            manifest["record_date_min"], manifest["record_date_max"]))
+    print(f"  Manifest saved: {IMPORT_MANIFEST_PATH}")
 
     # Report new vs existing weeks
     new_weeks = set()
@@ -731,13 +981,32 @@ def main():
     elif new_weeks:
         print(f"  Weeks to import: {len(new_weeks)}")
 
-    # Import to database
-    import_to_db(conn, all_records, company_set, fund_set)
+    stage_path, conn = create_staging_database(full_rebuild)
+    try:
+        create_schema(conn)
+        import_to_db(conn, all_records, company_set, fund_set)
+        validate_database(conn)
+        conn.execute("PRAGMA journal_mode=DELETE")
+        conn.close()
+        conn = None
+        backup_path = publish_database(stage_path)
+    except Exception:
+        if conn is not None:
+            conn.close()
+        if stage_path.exists():
+            stage_path.unlink()
+        raise
 
-    # Build time series and export
-    build_time_series(conn)
+    print(f"  Published staged database atomically: {DB_PATH}")
+    if backup_path:
+        print(f"  Previous database backup: {backup_path}")
 
-    conn.close()
+    # Derived exports are generated only after the database has been published.
+    published_conn = sqlite3.connect(str(DB_PATH))
+    try:
+        build_time_series(published_conn)
+    finally:
+        published_conn.close()
 
     print(f"\n{'=' * 60}")
     print(f"  Database: {DB_PATH}")

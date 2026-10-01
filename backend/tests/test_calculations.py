@@ -116,6 +116,100 @@ def test_excess_drawdown_never_positive():
     assert all(d <= 1e-12 for d in dds)
 
 
+def test_year_start_baseline_makes_first_negative_ytd_a_drawdown():
+    conn = _make_conn()
+    fid = _insert_fund(conn)
+    _insert_ytd_excess(conn, fid, [-0.05, -0.02])
+    cur = conn.cursor()
+
+    assert iws.insert_year_start_baselines(conn, cur) == 1
+    assert iws.insert_year_start_baselines(conn, cur) == 0
+    iws.compute_excess_drawdown(conn, cur)
+
+    rows = cur.execute(
+        "SELECT week_label, weekly_return, ytd_excess, ytd_excess_drawdown "
+        "FROM weekly_performances WHERE fund_id=? ORDER BY record_date", (fid,)).fetchall()
+    assert rows[0] == ("BASELINE-2026", None, 0.0, 0.0)
+    assert rows[1][3] == pytest.approx(-0.05)
+    assert rows[2][3] == pytest.approx(-0.02)
+
+
+def test_validate_import_records_rejects_empty_and_mixed_years():
+    with pytest.raises(ValueError, match="No weekly performance records"):
+        iws.validate_import_records([])
+
+    row = [None] * 16
+    row[3] = "2026-01-09"
+    other = list(row)
+    other[3] = "2027-01-08"
+    with pytest.raises(ValueError, match="single import"):
+        iws.validate_import_records([tuple(row), tuple(other)])
+
+
+def test_source_discovery_deduplicates_identical_weekly_files(tmp_path):
+    first = tmp_path / "点睛业绩放送_量化股票策略业绩榜（0601-0605）.xlsx"
+    copy = tmp_path / "点睛业绩放送_量化股票策略业绩榜（0601-0605）(1).xlsx"
+    first.write_bytes(b"same workbook")
+    copy.write_bytes(b"same workbook")
+
+    selected, manifest = iws.discover_source_files(tmp_path)
+
+    assert len(selected) == 1
+    assert manifest["week_count"] == 1
+    assert manifest["duplicates"][0]["week_label"] == "0601-0605"
+
+
+def test_source_discovery_rejects_conflicting_duplicate_week(tmp_path):
+    first = tmp_path / "点睛业绩放送_量化股票策略业绩榜（0601-0605）.xlsx"
+    copy = tmp_path / "点睛业绩放送_量化股票策略业绩榜（0601-0605）(1).xlsx"
+    first.write_bytes(b"first version")
+    copy.write_bytes(b"changed version")
+
+    with pytest.raises(ValueError, match="Conflicting workbooks"):
+        iws.discover_source_files(tmp_path)
+
+
+def test_staged_database_publish_keeps_recoverable_backup(tmp_path, monkeypatch):
+    production = tmp_path / "cc_data.sqlite3"
+    backup_dir = tmp_path / "backups"
+    with sqlite3.connect(production) as connection:
+        connection.execute("CREATE TABLE marker(value TEXT)")
+        connection.execute("INSERT INTO marker VALUES('old')")
+
+    monkeypatch.setattr(iws, "DB_PATH", production)
+    monkeypatch.setattr(iws, "DB_BACKUP_DIR", backup_dir)
+    stage_path, stage_connection = iws.create_staging_database(full_rebuild=True)
+    stage_connection.execute("CREATE TABLE marker(value TEXT)")
+    stage_connection.execute("INSERT INTO marker VALUES('new')")
+    stage_connection.commit()
+    stage_connection.execute("PRAGMA journal_mode=DELETE")
+    stage_connection.close()
+
+    backup_path = iws.publish_database(stage_path)
+
+    with sqlite3.connect(production) as connection:
+        assert connection.execute("SELECT value FROM marker").fetchone()[0] == "new"
+    with sqlite3.connect(backup_path) as connection:
+        assert connection.execute("SELECT value FROM marker").fetchone()[0] == "old"
+
+
+def test_staging_changes_do_not_touch_production_before_publish(tmp_path, monkeypatch):
+    production = tmp_path / "cc_data.sqlite3"
+    with sqlite3.connect(production) as connection:
+        connection.execute("CREATE TABLE marker(value TEXT)")
+        connection.execute("INSERT INTO marker VALUES('old')")
+    monkeypatch.setattr(iws, "DB_PATH", production)
+
+    stage_path, stage_connection = iws.create_staging_database(full_rebuild=False)
+    stage_connection.execute("UPDATE marker SET value='staged'")
+    stage_connection.commit()
+    stage_connection.close()
+
+    with sqlite3.connect(production) as connection:
+        assert connection.execute("SELECT value FROM marker").fetchone()[0] == "old"
+    stage_path.unlink()
+
+
 # ─────────────────────── compute_stock_long_excess ─────────────────────────
 
 def test_stock_long_excess_compounding(tmp_path, monkeypatch):
