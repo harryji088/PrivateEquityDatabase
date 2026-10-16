@@ -86,7 +86,7 @@ def read_sheet(ws):
 
     jc, jy = col("基金管理人"), col("今年以来收益率")
     js, jd = col("管理规模"), col("净值日期")
-    jwr, jwe = col("近一周收益率"), col("近一周超额")
+    jwr = col("近一周收益率")
     jye = col_like("今年以来超额", exclude=("回撤",))
     jxdd = col_like("今年以来动态回撤", "今年以来最大回撤", exclude=("超额",))
     out = {}
