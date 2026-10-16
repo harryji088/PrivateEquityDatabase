@@ -6,6 +6,9 @@ report:
   recent_windows: [1, 4, 12]
   min_sample_size: 5
   timezone: Asia/Shanghai
+  # 国庆合并周：榜单近一周收益以 09-30 净值为起点，而非上一报告日。
+  weekly_start_overrides:
+    "2026-10-09": "2026-09-30"
 
 alpha_heatmap:
   enabled: true
@@ -117,8 +120,8 @@ style:
       category: 大小盘
       long_key: CSI300
       short_key: CSI1000
-      positive_label: 大盘相对占优
-      negative_label: 小盘相对占优
+      positive_label: 大盘相对中盘占优
+      negative_label: 中盘相对大盘占优
     - key: size_500_2000
       label: 中证500 - 中证2000
       category: 大小盘

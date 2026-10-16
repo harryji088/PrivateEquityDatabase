@@ -52,12 +52,34 @@ def build_facts(
         warnings.append("以下策略没有当前有效观测：{}".format(", ".join(missing_strategies)))
     if unknown_size_count:
         warnings.append(f"当前周有 {unknown_size_count} 条观测缺少可识别的管理规模分类")
+    default_start = previous_as_of_date or f"{int(as_of_date[:4]) - 1}-12-31"
+    weekly_start = report_config["report"].get("weekly_start_overrides", {}).get(
+        as_of_date, default_start)
+    period_note = (
+        "本期使用榜单特殊起点；上一报告日与本期起点之间未纳入本期周收益。"
+        "近4/12周产品超额为实际榜单周超额累计，基准与风格为端点收益，"
+        "两者可能覆盖不同区间，不能直接作同区间收益比较。"
+        if weekly_start != default_start else
+        "本周按上一报告日（首期按年初基线）至本期报告日取值。")
+    windows = [{"label": "本周", "start_date": weekly_start, "end_date": as_of_date}]
+    if benchmark_analysis["benchmarks"]:
+        for window in (4, 12):
+            point = benchmark_analysis["benchmarks"][0]["rolling"].get(f"weeks_{window}", {})
+            windows.append({
+                "label": f"近{window}个报告期",
+                "start_date": point.get("start_report_date"), "end_date": as_of_date,
+            })
     facts = {
         "schema_version": "1.2",
         "analytics_version": ANALYTICS_VERSION,
         "generated_at": datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds"),
         "as_of_date": as_of_date,
         "previous_as_of_date": previous_as_of_date,
+        "report_period": {
+            "weekly_start_date": weekly_start, "end_date": as_of_date,
+            "start_source": "configured_override" if weekly_start != default_start else "report_calendar",
+            "windows": windows, "note": period_note,
+        },
         "data_sources": {
             "database": str(database_path.resolve()),
             "benchmark_nav": str(benchmark_path.resolve()),
@@ -77,7 +99,7 @@ def build_facts(
             "alpha_heatmap_neutral_threshold": report_config["alpha_heatmap"]["neutral_excess_threshold"],
             "alpha_heatmap_window": "latest_actual_report_dates_no_synthetic_weeks",
             "alpha_heatmap_vs_rolling": "weekly_cross_section_recomputed_each_date_not_individual_manager_rolling_cumulative_excess",
-            "benchmark_return_definition": "nav(end_on_or_before_as_of) / nav(start_on_or_before_previous_as_of) - 1",
+            "benchmark_return_definition": "nav(end_on_or_before_as_of) / nav(start_on_or_before_configured_weekly_start_or_previous_as_of) - 1",
             "style_return_definition": "style_spread = long_leg_cumulative_return - short_leg_cumulative_return",
             "style_data_source": "locally_cached_csindex_daily_price_indices",
             "style_max_staleness_days": report_config["style"]["max_staleness_days"],

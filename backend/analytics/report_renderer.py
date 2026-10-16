@@ -30,6 +30,17 @@ def render_report(facts: dict[str, Any], percent_digits: int, max_focus: int, ma
     ]
     lines.extend(_conclusion_lines(facts, percent_digits))
     lines.extend(["", "## 2. 市场与基准表现", ""])
+    period = facts.get("report_period")
+    if period:
+        lines.extend(["| 收益窗口 | 起点净值日 | 截止日 |", "|---|---|---|"])
+        for window in period["windows"]:
+            lines.append("| {} | {} | {} |".format(
+                window["label"], window["start_date"] or "历史不足", window["end_date"]))
+        lines.extend([
+            "", "> 榜单期次：{}。{}".format(
+                "、".join(period.get("source_week_labels", [])) or "—", period["note"]),
+            "> 上表为基准及风格的目标窗口，起点净值为收益计算基线；实际取值只向前回看。", "",
+        ])
     lines.extend(_market_table(facts["market"]["benchmarks"], percent_digits))
     lines.extend(["", "### V2A 风格环境", ""])
     lines.extend(_style_conclusion_table(
@@ -42,6 +53,7 @@ def render_report(facts: dict[str, Any], percent_digits: int, max_focus: int, ma
         facts["market"]["style"]["summary"]["heatmap_weeks"], percent_digits))
     lines.extend([
         "",
+        "> 大小盘表述：大盘以沪深300代理，中盘以中证500及中证1000代理，微盘以中证2000代理。结论是各指数之间的相对比较，不代表三档完整排名。",
         "> 说明：V2A 以价格指数收益差构造风格代理；不推断成交、广度、个股因子暴露或 Barra 因子收益。",
         "",
         "## 3. 指增市场概览",
@@ -124,9 +136,15 @@ def _conclusion_lines(facts: dict[str, Any], digits: int) -> list[str]:
         "",
         "| 市场风格代理 | 本周结论 |",
         "|---|---|",
-        "| 综合判断 | {} |".format(facts["market"]["environment_label"]),
     ])
-    style_headline = facts["market"].get("style", {}).get("summary", {}).get("headline")
+    style_summary = facts["market"].get("style", {}).get("summary", {})
+    for category in style_summary.get("category_conclusions", []):
+        if category["category"] == "大小盘":
+            lines.append("| 大小盘风格 | {} |".format(_cell(category["weekly"]["label"])))
+    if "configured_proxy_count" in style_summary:
+        lines.append("| 风格数据覆盖 | {}/{} 个代理本周可用 |".format(
+            style_summary["available_proxy_count"], style_summary["configured_proxy_count"]))
+    style_headline = style_summary.get("headline")
     if style_headline:
         lines.append(f"| V2A 风格 | {_cell(style_headline)} |")
     alpha_headline = facts.get("alpha_heatmap", {}).get("summary", {}).get("headline")
@@ -139,29 +157,21 @@ def _conclusion_lines(facts: dict[str, Any], digits: int) -> list[str]:
 
 
 def _market_table(items: list[dict[str, Any]], digits: int) -> list[str]:
-    lines = ["| 基准 | 本周 | 近4周 | 近12周 | 实际取值日 |", "|---|---:|---:|---:|---|"]
+    lines = ["| 基准 | 本周 | 近4周 | 近12周 | 本周实际净值起止日 |", "|---|---:|---:|---:|---|"]
     for item in _ordered_benchmarks(items):
         lines.append("| {} | {} | {} | {} | {} |".format(
             _cell(item["benchmark_label"]), _pct(item["weekly_return"], digits),
             _pct(item["rolling"].get("weeks_4", {}).get("return"), digits),
             _pct(item["rolling"].get("weeks_12", {}).get("return"), digits),
-            item["as_of_nav_date"] or "—",
+            "{} → {}".format(item.get("previous_nav_date") or "—", item["as_of_nav_date"] or "—"),
         ))
-    return lines
-
-
-def _style_table(items: list[dict[str, Any]], digits: int) -> list[str]:
-    lines = ["| 代理 | 本周差值 | 状态 |", "|---|---:|---|"]
-    for item in items:
-        lines.append("| {} | {} | {} |".format(
-            _cell(item["label"]), _pct(item["weekly_difference"], digits), item["status"]))
     return lines
 
 
 def _v2_style_table(items: list[dict[str, Any]], digits: int) -> list[str]:
     lines = [
-        "| 风格代理 | 本周差值 | 近4周 | 近12周 | 本周状态 | 连续同向 | 12周切换 |",
-        "|---|---:|---:|---:|---|---:|---:|",
+        "| 风格代理 | 本周差值 | 近4周 | 近12周 | 本周状态 | 连续同向 | 12周切换 | 本周实际净值起止日 |",
+        "|---|---:|---:|---:|---|---:|---:|---|",
     ]
     for item in items:
         weekly = item["weekly"]
@@ -169,14 +179,23 @@ def _v2_style_table(items: list[dict[str, Any]], digits: int) -> list[str]:
         status = weekly.get("direction")
         if weekly["status"] != "ok":
             status = "数据不完整：{}".format(weekly.get("reason", "未知原因"))
-        lines.append("| {} | {} | {} | {} | {} | {} | {} |".format(
+        lines.append("| {} | {} | {} | {} | {} | {} | {} | {} |".format(
             _cell(item["label"]), _pct(weekly.get("spread"), digits),
             _pct(rolling.get("weeks_4", {}).get("spread"), digits),
             _pct(rolling.get("weeks_12", {}).get("spread"), digits),
             _cell(status or "—"), item["stability"]["current_streak_weeks"],
             item["stability"]["switch_count"],
+            _style_actual_dates(weekly),
         ))
     return lines
+
+
+def _style_actual_dates(point: dict[str, Any]) -> str:
+    long_dates = "{} → {}".format(
+        point.get("long_start_nav_date") or "—", point.get("long_end_nav_date") or "—")
+    short_dates = "{} → {}".format(
+        point.get("short_start_nav_date") or "—", point.get("short_end_nav_date") or "—")
+    return long_dates if long_dates == short_dates else f"前一指数 {long_dates}；后一指数 {short_dates}"
 
 
 def _style_conclusion_table(items: list[dict[str, Any]]) -> list[str]:

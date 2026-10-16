@@ -38,13 +38,15 @@ def _period_return(
 
 def analyze_benchmarks(
         benchmarks: dict[str, dict[str, Any]], report_dates: list[str], as_of_date: str,
-        previous_as_of_date: str | None, recent_windows: list[int]) -> dict[str, Any]:
+        previous_as_of_date: str | None, recent_windows: list[int],
+        weekly_start_overrides: dict[str, str] | None = None) -> dict[str, Any]:
     """Align daily NAVs to report dates without ever looking beyond a report date."""
     market = []
     warnings = []
     for benchmark_key, benchmark in sorted(benchmarks.items()):
         nav_by_date = benchmark["nav_by_date"]
-        weekly_start = previous_as_of_date or _year_start_anchor(as_of_date)
+        weekly_start = (weekly_start_overrides or {}).get(
+            as_of_date, previous_as_of_date or _year_start_anchor(as_of_date))
         weekly = _period_return(nav_by_date, weekly_start, as_of_date)
         if not previous_as_of_date and weekly["start_nav_date"] != weekly_start.replace("-", ""):
             warnings.append(
@@ -65,6 +67,8 @@ def analyze_benchmarks(
                 continue
             else:
                 start_report_date = report_dates[start_index]
+            if window == 1:
+                start_report_date = weekly_start
             result = _period_return(nav_by_date, start_report_date, as_of_date)
             result["start_report_date"] = start_report_date
             rolling[key] = result
@@ -81,38 +85,11 @@ def analyze_benchmarks(
             "as_of_nav_date": actual_as_of,
             "weekly_return": weekly["return"],
             "previous_nav_date": weekly["start_nav_date"],
+            "weekly_start_date": weekly_start,
             "rolling": rolling,
         })
 
-    by_key = {item["benchmark_key"]: item for item in market}
-    style_proxies = []
-    for large_key, small_key, label in (
-            ("CSI300", "CSI1000", "沪深300 - 中证1000"),
-            ("CSI500", "CSI2000", "中证500 - 中证2000")):
-        large = by_key.get(large_key, {}).get("weekly_return")
-        small = by_key.get(small_key, {}).get("weekly_return")
-        if large is None or small is None:
-            style_proxies.append({"label": label, "weekly_difference": None, "status": "风格信号不完整"})
-        else:
-            difference = large - small
-            style_proxies.append({
-                "label": label,
-                "weekly_difference": difference,
-                "status": "大盘相对占优" if difference > 0 else "小盘相对占优",
-            })
-
-    usable = [item for item in style_proxies if item["weekly_difference"] is not None]
-    if not usable:
-        environment = "无法判断"
-    elif all(item["weekly_difference"] > 0 for item in usable):
-        environment = "大盘相对占优"
-    elif all(item["weekly_difference"] < 0 for item in usable):
-        environment = "小盘相对占优"
-    else:
-        environment = "风格信号不完整"
     return {
         "benchmarks": market,
-        "style_proxies": style_proxies,
-        "environment_label": environment,
         "warnings": warnings,
     }

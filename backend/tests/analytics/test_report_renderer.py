@@ -72,6 +72,18 @@ def test_summary_tables_use_the_fixed_strategy_and_benchmark_order():
         },
     }, 2)
     assert conclusion_with_style[-1] == "| V2A 风格 | 本周：成长价值：成长相对占优。 |"
+    assert not any("综合判断" in line for line in conclusion_with_style)
+
+    classified = _conclusion_lines({
+        "strategy_summary": unordered,
+        "market": {"environment_label": "风格信号不完整", "style": {"summary": {
+            "available_proxy_count": 10, "configured_proxy_count": 10,
+            "category_conclusions": [{"category": "大小盘", "weekly": {"label": "信号分化"}}],
+        }}},
+    }, 2)
+    assert "| 大小盘风格 | 信号分化 |" in classified
+    assert "| 风格数据覆盖 | 10/10 个代理本周可用 |" in classified
+    assert not any("风格信号不完整" in line for line in classified)
 
     trends = _trend_table(unordered, 2)
     assert [line.split("|")[1].strip() for line in trends[2:]] == expected_labels

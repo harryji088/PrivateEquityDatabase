@@ -120,16 +120,19 @@ def _direction(
 
 def _weekly_history(
         long_series: dict[str, Any], short_series: dict[str, Any], report_dates: list[str],
-        as_of_date: str, max_weeks: int, max_staleness_days: int) -> list[dict[str, Any]]:
+        as_of_date: str, max_weeks: int, max_staleness_days: int,
+        weekly_start_overrides: dict[str, str]) -> list[dict[str, Any]]:
     end = report_dates.index(as_of_date)
     start = max(0, end - max_weeks + 1)
     result = []
     for index in range(start, end + 1):
         end_date = report_dates[index]
         start_date = report_dates[index - 1] if index else _year_start_anchor(end_date)
+        start_date = weekly_start_overrides.get(end_date, start_date)
         point = _aligned_spread(
             long_series, short_series, start_date, end_date, max_staleness_days)
         point["as_of_date"] = end_date
+        point["start_date"] = start_date
         result.append(point)
     return result
 
@@ -203,10 +206,8 @@ def _window_conclusion(
         state, sign, label = "flat", 0, "相对持平"
     else:
         state, sign = "mixed", None
-        label = (
-            f"信号分化（多头腿占优 {len(positive)}/{available_count}，"
-            f"对照腿占优 {len(negative)}/{available_count}）"
-        )
+        labels = list(dict.fromkeys(item["direction"] for item in observations))
+        label = "信号分化（{}）".format("；".join(labels))
     return {
         "state": state,
         "sign": sign,
@@ -272,7 +273,7 @@ def _style_headline(conclusions: list[dict[str, Any]]) -> str:
         if weekly["state"] == "unanimous":
             weekly_signals.append("{}：{}".format(item["category"], weekly["label"]))
         elif weekly["state"] == "mixed":
-            weekly_signals.append("{}：信号分化".format(item["category"]))
+            weekly_signals.append("{}：{}".format(item["category"], weekly["label"]))
         else:
             weekly_signals.append("{}：{}".format(item["category"], weekly["label"]))
         if item["trend_comment"].startswith("短线反转"):
@@ -287,11 +288,14 @@ def analyze_style_proxies(
         sources: dict[str, dict[str, Any]], proxies: list[dict[str, Any]],
         report_dates: list[str], as_of_date: str, previous_as_of_date: str | None,
         recent_windows: list[int], heatmap_weeks: int, max_staleness_days: int = 4,
-        neutral_spread_threshold: float = 0.0005) -> dict[str, Any]:
+        neutral_spread_threshold: float = 0.0005,
+        weekly_start_overrides: dict[str, str] | None = None) -> dict[str, Any]:
     """Build V2A style facts without looking after the report date."""
     warnings = []
     analyzed = []
-    weekly_start = previous_as_of_date or _year_start_anchor(as_of_date)
+    overrides = weekly_start_overrides or {}
+    weekly_start = overrides.get(
+        as_of_date, previous_as_of_date or _year_start_anchor(as_of_date))
     current_index = report_dates.index(as_of_date)
 
     for proxy in proxies:
@@ -316,6 +320,8 @@ def analyze_style_proxies(
 
         weekly = _aligned_spread(
             long_series, short_series, weekly_start, as_of_date, max_staleness_days)
+        weekly["start_date"] = weekly_start
+        weekly["end_date"] = as_of_date
         weekly["sign"] = _spread_sign(weekly["spread"], neutral_spread_threshold)
         weekly["direction"] = _direction(
             weekly["spread"], proxy, neutral_spread_threshold)
@@ -336,8 +342,12 @@ def analyze_style_proxies(
                 continue
             else:
                 start_date = report_dates[start_index]
+            if window == 1:
+                start_date = weekly_start
             value = _aligned_spread(
                 long_series, short_series, start_date, as_of_date, max_staleness_days)
+            value["start_date"] = start_date
+            value["end_date"] = as_of_date
             value["sign"] = _spread_sign(value["spread"], neutral_spread_threshold)
             value["direction"] = _direction(
                 value["spread"], proxy, neutral_spread_threshold)
@@ -345,7 +355,7 @@ def analyze_style_proxies(
 
         history = _weekly_history(
             long_series, short_series, report_dates, as_of_date, heatmap_weeks,
-            max_staleness_days)
+            max_staleness_days, overrides)
         for point in history:
             point["sign"] = _spread_sign(point["spread"], neutral_spread_threshold)
             point["direction"] = _direction(

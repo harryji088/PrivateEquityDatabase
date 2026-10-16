@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -87,6 +87,16 @@ def load_report_config(path: Path) -> dict[str, Any]:
         report.get("min_sample_size"), "report.min_sample_size", 1))
     if report.get("timezone") != "Asia/Shanghai":
         raise AnalyticsError("report.timezone must be Asia/Shanghai in V1")
+    overrides = _require_mapping(
+        report.setdefault("weekly_start_overrides", {}), "report.weekly_start_overrides")
+    for end_date, start_date in overrides.items():
+        try:
+            end = datetime.strptime(end_date, "%Y-%m-%d")
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+        except (TypeError, ValueError) as exc:
+            raise AnalyticsError("weekly_start_overrides must contain YYYY-MM-DD dates") from exc
+        if start >= end or start.year != end.year:
+            raise AnalyticsError("weekly_start_overrides must start before end in the same year")
 
     alpha_heatmap = _require_mapping(config.get("alpha_heatmap"), "alpha_heatmap")
     if not isinstance(alpha_heatmap.get("enabled"), bool):

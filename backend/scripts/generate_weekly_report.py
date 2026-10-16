@@ -78,7 +78,8 @@ def main() -> int:
         style_data = load_style_nav(style_path, report_config["style"]["indices"])
         benchmark_analysis = analyze_benchmarks(
             benchmark_data, report_dates, as_of_date, previous_as_of_date,
-            report_config["report"]["recent_windows"])
+            report_config["report"]["recent_windows"],
+            report_config["report"]["weekly_start_overrides"])
         style_sources = dict(benchmark_data)
         style_sources.update(style_data)
         style_analysis = analyze_style_proxies(
@@ -86,7 +87,8 @@ def main() -> int:
             previous_as_of_date, report_config["report"]["recent_windows"],
             report_config["style"]["heatmap_weeks"],
             report_config["style"]["max_staleness_days"],
-            report_config["style"]["neutral_spread_threshold"])
+            report_config["style"]["neutral_spread_threshold"],
+            report_config["report"]["weekly_start_overrides"])
         universe = analyze_universe(
             observations, report_dates, as_of_date, previous_as_of_date,
             report_config["strategies"], report_config["report"]["min_sample_size"],
@@ -114,6 +116,11 @@ def main() -> int:
             args.db, args.benchmark, style_path, as_of_date, previous_as_of_date, report_config,
             benchmark_analysis, style_analysis, universe, alpha_heatmap, size_analysis,
             focus_cards, focus_warnings, alerts)
+        current_labels = sorted({
+            item.week_label for item in observations
+            if item.as_of_date.isoformat() == as_of_date
+        })
+        facts["report_period"]["source_week_labels"] = current_labels
         if args.validate_only:
             _print_summary(facts, validate_only=True)
             return 0

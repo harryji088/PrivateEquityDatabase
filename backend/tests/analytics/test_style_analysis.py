@@ -15,6 +15,44 @@ def _proxy():
     }
 
 
+@pytest.mark.parametrize("case,state", [
+    ("opposite", "mixed"), ("neutral", "flat"),
+    ("missing", "incomplete"), ("stale", "incomplete"),
+])
+def test_category_states_distinguish_divergence_neutral_missing_and_stale(case, state):
+    second = dict(_proxy(), key="second", long_key="OTHER", short_key="VALUE")
+    sources = {
+        "GROWTH": _series({"20251231": 1.0, "20260109": 1.01}),
+        "OTHER": _series({"20251231": 1.0, "20260109": 0.99}),
+        "VALUE": _series({"20251231": 1.0, "20260109": 1.0}),
+    }
+    if case == "neutral":
+        for series in sources.values():
+            series["nav_by_date"]["20260109"] = 1.0
+    if case == "missing":
+        del sources["OTHER"]
+    end = "2026-01-16" if case == "stale" else "2026-01-09"
+    result = analyze_style_proxies(sources, [_proxy(), second], [end], end, None, [4, 12], 12)
+    conclusion = result["summary"]["category_conclusions"][0]["weekly"]
+    assert conclusion["state"] == state
+    assert ("数据不完整" in conclusion["label"]) == (state == "incomplete")
+
+
+def test_special_week_start_is_shared_by_current_window_and_heatmap():
+    sources = {
+        "GROWTH": _series({"20260924": 1.0, "20260930": 0.9, "20261009": 0.99}),
+        "VALUE": _series({"20260924": 1.0, "20260930": 1.0, "20261009": 1.0}),
+    }
+    result = analyze_style_proxies(
+        sources, [_proxy()], ["2026-09-24", "2026-10-09"], "2026-10-09", "2026-09-24",
+        [1, 4, 12], 12, weekly_start_overrides={"2026-10-09": "2026-09-30"})
+    item = result["proxies"][0]
+    assert item["weekly"]["spread"] == pytest.approx(0.1)
+    assert item["history"][-1]["spread"] == item["weekly"]["spread"]
+    assert item["rolling"]["weeks_1"]["spread"] == item["weekly"]["spread"]
+    assert item["history"][-1]["start_date"] == "2026-09-30"
+
+
 def test_style_spread_uses_endpoint_returns_not_sum_of_weekly_spreads():
     sources = {
         "GROWTH": _series({
