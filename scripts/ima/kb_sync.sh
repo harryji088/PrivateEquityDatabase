@@ -48,7 +48,15 @@ for row in "${IMA_MODULES[@]}"; do
     fi
     summary=$(node -e '
       const fs=require("fs"),path=require("path");
-      const remote=require(process.argv[1]).filter(x=>/^\d{4}-\d{4}$/.test(x.title)).map(x=>x.title).sort();
+      // 周区间跨度 ≤ ~2 周；月度榜单夹(如 0831-0930=30天)虽同格式但跨度 ~1 个月,排除以免误报缺周
+      function spanDays(t){
+        const cum=[0,0,31,59,90,120,151,181,212,243,273,304,334]; // cum[m]=本月之前的天数(平年)
+        const day=s=>cum[+s.slice(0,2)]+ +s.slice(2,4);
+        let diff=day(t.slice(5))-day(t.slice(0,4));
+        if(diff < -20) diff+=365; // 跨年周(12月→1月)仍算小跨度
+        return diff;
+      }
+      const remote=require(process.argv[1]).filter(x=>/^\d{4}-\d{4}$/.test(x.title)).map(x=>x.title).filter(t=>spanDays(t)<=20).sort();
       const root=process.argv[2], counts=new Map();
       // 只统计 2026/ 子树: 2025 历史周(如 0922-0926)字典序可能大于 2026 当前周,会掩盖真实缺周
       function walk(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){if(e.name.startsWith("."))continue;if(e.name==="2025")continue;const p=path.join(d,e.name);if(e.isDirectory())walk(p);else{const m=e.name.match(/(\d{4}-\d{4})/);if(m)counts.set(m[1],(counts.get(m[1])||0)+1);}}}
